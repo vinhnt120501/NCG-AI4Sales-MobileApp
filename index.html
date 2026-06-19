@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0070B0" />
+  <title>AI SalesMate — Trợ lý Sale Thuốc Thú y</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="stage">
+    <div class="device">
+      <div class="notch"></div>
+      <div class="statusbar">
+        <span>09:41</span>
+        <span class="sb-right">5G · 86% ▢</span>
+      </div>
+
+      <div class="app">
+        <!-- ============================================================ HOME -->
+        <section id="home" class="screen active">
+          <div class="appbar">
+            <div>
+              <div class="brand"><img src="assets/anova-logo.png" alt="Anova" /></div>
+              <div class="hello" style="margin-top:10px">
+                <h2>Chào anh Minh 👋</h2>
+                <p id="repRegion">Trợ lý Sale thuốc thú y</p>
+              </div>
+            </div>
+            <button class="icon-btn" id="bellBtn" aria-label="Thông báo">
+              🔔<span class="badge" id="bellBadge">0</span>
+            </button>
+          </div>
+
+          <div class="search" id="homeSearch">
+            🔎 <span>Hỏi nhanh về bệnh, thuốc, khách hàng, khuyến mãi…</span>
+          </div>
+
+          <div class="card hero" id="homeHero" data-go="market"></div>
+
+          <div class="card">
+            <div class="card-title"><h3>Các trợ lý AI</h3></div>
+            <div class="feature-grid">
+              <button class="feature" data-go="knowledge">
+                <div class="feature-icon">🧠</div>
+                <div>
+                  <h4>Trợ lý tri thức</h4>
+                  <p>Chẩn đoán hỗ trợ, phác đồ tham khảo, tra cứu sản phẩm – liều – giá và chương trình khuyến mãi.</p>
+                </div>
+              </button>
+              <button class="feature" data-go="push">
+                <div class="feature-icon green">✨</div>
+                <div>
+                  <h4>Trợ lý Push-sale</h4>
+                  <p>Xem lịch sử mua của khách và nhận gợi ý cơ hội up-sale / cross-sale kèm lý do.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <h3>Highlight dịch bệnh</h3>
+              <button class="seg-btn active" data-go="market">Xem bản đồ</button>
+            </div>
+            <p class="subtext">Tín hiệu nổi bật tổng hợp từ bản đồ dịch bệnh heat-map và dữ liệu thị trường do Sale ghi nhận.</p>
+            <div class="stat-grid" id="homeStats"></div>
+            <div class="spacer-12"></div>
+            <button class="btn btn-secondary" data-go="market">Mở bản đồ dịch bệnh heat-map</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><h3>Gợi ý câu hỏi nhanh</h3></div>
+            <div class="quick-row" id="homeQuick"></div>
+          </div>
+        </section>
+
+        <!-- ======================================================= KNOWLEDGE -->
+        <section id="knowledge" class="screen">
+          <div class="screen-header">
+            <button class="back" data-go="home">‹</button>
+            <div>
+              <h2>Trợ lý tri thức</h2>
+              <p>Hỏi đáp về bệnh, phác đồ tham khảo, sản phẩm – liều – giá và khuyến mãi.</p>
+            </div>
+          </div>
+
+          <div class="seg" id="kbSeg">
+            <button class="seg-btn active" data-mode="diagnose">🩺 Chẩn đoán</button>
+            <button class="seg-btn" data-mode="protocol">💊 Phác đồ</button>
+            <button class="seg-btn" data-mode="product">📦 Sản phẩm</button>
+            <button class="seg-btn" data-mode="promo">🎁 Khuyến mãi</button>
+          </div>
+
+          <div class="card">
+            <div class="chat" id="kbChat"></div>
+          </div>
+
+          <div class="card" id="kbQuickCard">
+            <div class="card-title"><h3 id="kbQuickTitle">Gợi ý nhanh</h3></div>
+            <div class="quick-row" id="kbQuick"></div>
+          </div>
+
+          <div class="composer">
+            <input id="kbInput" placeholder="Nhập câu hỏi cho trợ lý tri thức…" />
+            <button class="send" id="kbSend">➤</button>
+          </div>
+        </section>
+
+        <!-- ============================================================ PUSH -->
+        <section id="push" class="screen">
+          <div class="screen-header">
+            <button class="back" data-go="home">‹</button>
+            <div>
+              <h2>Trợ lý Push-sale</h2>
+              <p>Phân tích lịch sử mua, bối cảnh dịch vùng và gợi ý cơ hội up-sale / cross-sale.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><h3>Chọn khách hàng</h3></div>
+            <p class="subtext">Chạm vào một đại lý / trang trại để xem lịch sử mua và gợi ý đẩy hàng.</p>
+            <div class="customer-pick" id="custPick"></div>
+          </div>
+
+          <div id="pushResult"></div>
+
+          <div class="card">
+            <div class="card-title"><h3>Gợi ý ưu tiên hôm nay</h3></div>
+            <div id="pushPriority"></div>
+          </div>
+
+          <div class="composer">
+            <input id="pushInput" placeholder="Hỏi tiếp: nên nói gì với khách?" />
+            <button class="send" id="pushSend">➤</button>
+          </div>
+        </section>
+
+        <!-- ========================================================== MARKET -->
+        <section id="market" class="screen">
+          <div class="screen-header">
+            <button class="back" data-go="home">‹</button>
+            <div>
+              <h2>Bản đồ dịch bệnh</h2>
+              <p>Heat-map dịch bệnh gia súc – gia cầm, cảnh báo nổi bật và nhập thông tin thị trường.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <h3>Bản đồ dịch bệnh heat-map</h3>
+              <span class="pill" id="mapUpdated">Cập nhật 10:35</span>
+            </div>
+            <div class="seg" id="mapFilters"></div>
+            <div class="map-shell" id="mapShell"></div>
+            <div class="spacer-12"></div>
+            <div class="stat-grid" id="mapStats"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <h3>Cảnh báo nổi bật</h3>
+              <span class="pill amber" id="alertCount">0 cảnh báo</span>
+            </div>
+            <div id="alertList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><h3>Thu thập thông tin thị trường</h3></div>
+            <p class="subtext">Sale nhập tín hiệu thực địa: dịch bệnh, xu hướng tăng/giảm đàn, nhu cầu thuốc, biến động giá.</p>
+            <div id="marketForm"></div>
+          </div>
+        </section>
+
+        <!-- ============================================================ NAV -->
+        <nav class="tabbar">
+          <button class="tab active" data-go="home"><span class="tab-ico">⌂</span>Tổng quan</button>
+          <button class="tab" data-go="knowledge"><span class="tab-ico">🧠</span>Tri thức</button>
+          <button class="tab" data-go="push"><span class="tab-ico">✨</span>Push-sale</button>
+          <button class="tab" data-go="market"><span class="tab-ico">🗺️</span>Dịch bệnh</button>
+        </nav>
+
+        <div id="toast" class="toast"></div>
+        <div id="sheetBackdrop" class="sheet-backdrop"></div>
+        <div id="sheet" class="sheet"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
