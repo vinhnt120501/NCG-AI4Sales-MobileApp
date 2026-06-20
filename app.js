@@ -7,6 +7,23 @@
   'use strict';
   const DB = window.DB;
 
+  const SVG = {
+    alert: `<svg class="ico" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`,
+    package: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`,
+    shield: `<svg class="ico" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+    gift: `<svg class="ico" viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>`,
+    phone: `<svg class="ico" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`,
+    arrowRight: `<svg class="ico" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+    science: `<svg class="ico" viewBox="0 0 24 24"><path d="M6 18h8M3 22h18m-4-8-4-4m7 2-3-3M16 3l-7 7M14 22a7 7 0 1 0-14 0"></path></svg>`,
+    list: `<svg class="ico" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
+    help: `<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+    flag: `<svg class="ico" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>`,
+    chat: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+    trendingUp: `<svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
+    mapPin: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
+    sparkles: `<svg class="ico" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path></svg>`
+  };
+
   /* ----------------------------------------------------------- Tiny helpers */
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -158,7 +175,7 @@
       const b = e.target.closest('[data-q]'); if (!b) return;
       const q = quicks[+b.dataset.q];
       if (q.go === 'knowledge') { setMode(q.mode, true); go('knowledge'); if (q.run) ask(q.run); }
-      else if (q.go === 'push') { state.pushCustomer = q.cust; go('push'); }
+      else if (q.go === 'push') { go('push'); if (q.cust) analyzeCustomer(q.cust); }
       else go(q.go);
     };
   }
@@ -370,21 +387,21 @@
         <div class="kv"><b>Cần xét nghiệm</b><span>${esc(d.xet_nghiem || 'Theo chỉ định kỹ thuật')}</span></div>
       </div>
 
-      <div class="panel"><h5>🔬 Cơ sở khoa học & dịch tễ</h5>
+      <div class="panel"><h5>${SVG.science} Cơ sở khoa học & dịch tễ</h5>
         <p>${esc(d.co_che_benh_sinh || '')}</p>
         ${d.benh_tich ? `<div class="kv"><b>Bệnh tích</b><span>${esc(d.benh_tich)}</span></div>` : ''}
       </div>
 
-      ${d.chi_so_canh_bao ? `<div class="panel"><h5>⚠️ Cảnh báo sớm tại trại</h5><p>${esc(d.chi_so_canh_bao)}</p></div>` : ''}
+      ${d.chi_so_canh_bao ? `<div class="panel"><h5>${SVG.alert} Cảnh báo sớm tại trại</h5><p>${esc(d.chi_so_canh_bao)}</p></div>` : ''}
 
-      <div class="panel green"><h5>📋 Hướng xử lý tham khảo</h5>
+      <div class="panel green"><h5>${SVG.list} Hướng xử lý tham khảo</h5>
         <ul>${splitSteps(d.buoc_xu_ly).map(s => `<li>${esc(s)}</li>`).join('')}</ul>
         ${d.vaccine_phong && prodById[d.vaccine_phong] ? `<div class="kv" style="margin-top:6px"><b>Vaccine phòng</b><span>${esc(prodById[d.vaccine_phong].ten)}</span></div>` : ''}
       </div>
 
-      ${prods.length ? `<div class="panel"><h5>📦 Sản phẩm theo vai trò (tham khảo)</h5>${prodHtml}</div>` : ''}
+      ${prods.length ? `<div class="panel"><h5>${SVG.package} Sản phẩm theo vai trò (tham khảo)</h5>${prodHtml}</div>` : ''}
 
-      <div class="panel"><h5>❓ Nên hỏi thêm để chắc chắn</h5>
+      <div class="panel"><h5>${SVG.help} Nên hỏi thêm để chắc chắn</h5>
         <ul>
           <li>Tỷ lệ chết / tỷ lệ mắc và tốc độ lan trong đàn?</li>
           <li>Lịch tiêm phòng, tình trạng nhập đàn mới, nguồn nước – thức ăn?</li>
@@ -392,7 +409,7 @@
         </ul>
       </div>
 
-      ${needExpert ? `<div class="flag-expert">🚩 <span><b>Chuyển chuyên gia.</b> ${esc(expertMsg)}</span></div>` : ''}
+      ${needExpert ? `<div class="flag-expert">${SVG.flag} <span><b>Chuyển chuyên gia.</b> ${esc(expertMsg)}</span></div>` : ''}
       <div class="warning">AI chỉ hỗ trợ tư vấn ban đầu. Hướng điều trị và liều dùng cần đối chiếu nhãn sản phẩm, tài liệu kỹ thuật và ý kiến chuyên môn.</div>
       ${srcRow(['Dịch tễ học & cảnh báo sớm', 'An toàn sinh học & vaccine', 'Catalogue sản phẩm'])}`;
   }
@@ -417,11 +434,11 @@
     return `
       <p class="ans-lead">Phác đồ xử lý tham khảo cho <b>${esc(d.ten_benh)}</b> (${d.vat_nuoi === 'heo' ? 'heo' : 'gà'}).</p>
       <div class="muted-note">Tác nhân: ${esc(d.tac_nhan || '—')} · ${d.co_thuoc_dac_tri === false ? '<b style="color:var(--danger)">Không có thuốc đặc trị</b>' : 'Có hướng điều trị đặc hiệu'}</div>
-      <div class="panel green"><h5>📋 Các bước xử lý</h5>
+      <div class="panel green"><h5>${SVG.list} Các bước xử lý</h5>
         <ul>${splitSteps(d.buoc_xu_ly).map(s => `<li>${esc(s)}</li>`).join('')}</ul>
       </div>
-      ${d.vaccine_phong && prodById[d.vaccine_phong] ? `<div class="panel"><h5>💉 Vaccine phòng</h5><p>${esc(prodById[d.vaccine_phong].ten)} — ${esc(prodById[d.vaccine_phong].chi_dinh || '')}</p></div>` : ''}
-      ${prods.length ? `<div class="panel"><h5>📦 Nhóm sản phẩm đi kèm</h5>${prods.map(p => `
+      ${d.vaccine_phong && prodById[d.vaccine_phong] ? `<div class="panel"><h5>${SVG.activity || SVG.shield} Vaccine phòng</h5><p>${esc(prodById[d.vaccine_phong].ten)} — ${esc(prodById[d.vaccine_phong].chi_dinh || '')}</p></div>` : ''}
+      ${prods.length ? `<div class="panel"><h5>${SVG.package} Nhóm sản phẩm đi kèm</h5>${prods.map(p => `
         <div class="product-line" data-prod="${esc(p.ma_sp)}"><div class="pl-main"><span class="role-tag">${ROLE[p.loai] || ''}</span><b>${esc(p.ten)}</b><small>${esc(p.lieu_luong || '')}</small></div><div class="pl-price">${fmtVnd(p.gia_vnd)}</div></div>`).join('')}</div>` : ''}
       <div class="warning">Phác đồ mang tính tham khảo theo thư viện tri thức; cần đối chiếu nhãn sản phẩm và ý kiến bác sĩ thú y trước khi áp dụng.</div>
       ${srcRow(['An toàn sinh học & vaccine', 'Dược lý thú y (cơ chế & PK/PD)', 'Kỹ thuật chăn nuôi'])}`;
@@ -452,7 +469,7 @@
     const warn = p.chong_chi_dinh || p.thoi_gian_ngung || p.tuong_tac_luu_y;
     return `
       <p class="ans-lead"><b>${esc(p.ten)}</b> — ${esc(LOAI_LABEL[p.loai] || p.loai)} · ${esc(p.hang || '')}</p>
-      <div class="panel"><h5>📦 Thông tin sản phẩm</h5>
+      <div class="panel"><h5>${SVG.package} Thông tin sản phẩm</h5>
         ${kv('Công dụng', p.cong_dung)}
         ${kv('Chỉ định', p.chi_dinh)}
         ${kv('Liều dùng', p.lieu_luong)}
@@ -460,7 +477,7 @@
         ${kv('Đối tượng', p.doi_tuong)}
         <div class="kv"><b>Giá tham khảo</b><span><b style="color:var(--primary-dark)">${fmtVnd(p.gia_vnd)}</b> · ${esc(p.quy_cach || '')}</span></div>
       </div>
-      ${warn ? `<div class="panel danger"><h5>🛡️ Lưu ý an toàn</h5>
+      ${warn ? `<div class="panel danger"><h5>${SVG.shield} Lưu ý an toàn</h5>
         ${kv('Chống chỉ định', p.chong_chi_dinh)}
         ${kv('Thời gian ngừng thuốc', p.thoi_gian_ngung)}
         ${kv('Tương tác – lưu ý', p.tuong_tac_luu_y)}
@@ -485,7 +502,7 @@
       if (f.length) list = f;
     }
     const cards = list.map(p => `
-      <div class="panel"><h5>🎁 ${esc(p.ten)}</h5>
+      <div class="panel"><h5>${SVG.gift} ${esc(p.ten)}</h5>
         <div class="kv"><b>Ưu đãi</b><span>${esc(p.uu_dai)}</span></div>
         <div class="kv"><b>Áp dụng cho</b><span>${esc(p.san_pham)} · ${esc(p.doi_tuong)}</span></div>
         <div class="kv"><b>Điều kiện</b><span>${esc(p.dieu_kien)}</span></div>
@@ -538,109 +555,164 @@
     return { safe, suggest, grow, mainAnimal };
   }
 
+  /* ---- Push-sale là một luồng CHAT: chọn khách -> phân tích -> hỏi tiếp ---- */
+  let pushReady = false;
   function renderPush() {
-    // customer chips
+    renderCustChips();
+    if (!pushReady) { seedPushIntro(); pushReady = true; }
+  }
+
+  function renderCustChips() {
     $('#custPick').innerHTML = DB.distributors.map(d => `
       <button class="cust-chip ${d.id === state.pushCustomer ? 'active' : ''}" data-cust="${d.id}">
         <b>${esc(d.ten)}</b><small>${esc(d.khu_vuc)} · ${esc(d.loai_hinh)}</small>
       </button>`).join('');
     $('#custPick').onclick = (e) => {
       const b = e.target.closest('[data-cust]'); if (!b) return;
-      state.pushCustomer = b.dataset.cust;
-      renderPush();
+      analyzeCustomer(b.dataset.cust);
     };
+  }
 
-    const d = DB.distributors.find(x => x.id === state.pushCustomer);
-    const agg = custAgg(d);
-    const tiers = tierSuggestions(d, agg);
-    const regionAlerts = state.alerts.filter(a => a.tinh === d.khu_vuc);
-    const maxMonth = Math.max(...agg.months.map(m => agg.byMonth[m]), 1);
+  function pushBubble(who, html) {
+    const div = document.createElement('div');
+    div.className = 'bubble ' + who;
+    div.innerHTML = html;
+    $('#pushChat').appendChild(div);
+    pushScroll();
+    return div;
+  }
+  function pushScroll() { const sc = $('#push'); requestAnimationFrame(() => { sc.scrollTop = sc.scrollHeight; }); }
+  function pushThinking() {
+    const div = document.createElement('div');
+    div.className = 'bubble ai typing';
+    div.innerHTML = '<i></i><i></i><i></i>';
+    $('#pushChat').appendChild(div); pushScroll(); return div;
+  }
+  function setPushQuick(arr) {
+    $('#pushQuick').innerHTML = arr.map(q => `<button class="quick">${esc(q)}</button>`).join('');
+  }
 
-    const tierBlock = (cls, tag, title, why, items, action) => `
-      <div class="tier ${cls}"><h5><span class="tier-tag">${tag}</span> ${title}</h5>
-        <p class="muted-note" style="margin:0 0 6px">${why}</p>
-        ${items.map(p => `<div class="product-line" data-prod="${esc(p.ma_sp)}"><div class="pl-main"><b>${esc(p.ten)}</b><small>${esc(LOAI_LABEL[p.loai])} · ${esc(p.lieu_luong || '')}</small></div><div class="pl-price">${fmtVnd(p.gia_vnd)}</div></div>`).join('') || '<p class="muted-note">—</p>'}
-        <div class="muted-note" style="margin-top:6px">👉 ${action}</div>
-      </div>`;
-
-    $('#pushResult').innerHTML = `
-      <div class="card">
-        <div class="card-title"><h3>${esc(d.ten)}</h3><span class="pill">${esc(d.khu_vuc)}</span></div>
-        <div class="stat-grid">
-          <div class="stat"><strong>${fmtVndShort(agg.total)}</strong><span>tổng mua (6 tháng)</span></div>
-          <div class="stat warnval"><strong>${fmtVndShort(d.cong_no_vnd)}</strong><span>công nợ hiện tại</span></div>
-          <div class="stat"><strong>${agg.topProd.length}</strong><span>nhóm sản phẩm</span></div>
-          <div class="stat"><strong>${regionAlerts.length}</strong><span>cảnh báo dịch trong vùng</span></div>
-        </div>
-        <div class="spacer-12"></div>
-        <div class="muted-note"><b>${esc(d.quy_mo)}.</b> ${esc(d.ghi_chu)}</div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><h3>Lịch sử mua hàng</h3><span class="pill">${agg.months.length} tháng</span></div>
-        <div class="history-bars">
-          ${agg.months.map(m => `<div class="hbar"><div class="bar" style="height:${Math.max(8, agg.byMonth[m] / maxMonth * 100)}%"></div><small>${esc(m.slice(5))}/${esc(m.slice(2, 4))}</small></div>`).join('')}
-        </div>
-        <div class="spacer-12"></div>
-        <div class="card-title" style="margin:0 0 8px"><h3 style="font-size:13px">Sản phẩm chủ lực</h3></div>
-        ${agg.topProd.slice(0, 4).map(tp => `<div class="product-line"${prodById[tp.ma] ? ` data-prod="${esc(tp.ma)}"` : ''}><div class="pl-main"><b>${esc(tp.ten)}</b><small>${tp.qty.toLocaleString('vi-VN')} đơn vị</small></div><div class="pl-price">${fmtVndShort(tp.val)}</div></div>`).join('')}
-      </div>
-
-      <div class="card">
-        <div class="card-title"><h3>Gợi ý đẩy hàng (3 mức)</h3><span class="pill green">AI Push-sale</span></div>
-        ${regionAlerts.length ? `<div class="panel danger" style="margin-top:0"><h5>📍 Bối cảnh dịch vùng ${esc(d.khu_vuc)}</h5><p>${esc(regionAlerts[0].ten_benh.split(' (')[0])}${regionAlerts.length > 1 ? ` và ${regionAlerts.length - 1} tín hiệu khác` : ''} đang được ghi nhận → nhu cầu phòng dịch & sát trùng tăng. Lồng yếu tố này vào nội dung tư vấn.</p></div>` : ''}
-        ${tierBlock('safe', 'An toàn', 'Nhập lại theo nhịp', 'Duy trì sản phẩm chủ lực khách vẫn mua đều — rủi ro thấp, dễ chốt.', tiers.safe, 'Mở đầu bằng đơn nhập lại đúng nhịp khách quen.')}
-        ${tierBlock('suggest', 'Đề xuất', 'Bán kèm – cross-sale', 'Nhóm bổ trợ / sát trùng khách chưa mua nhưng phù hợp với đàn và bối cảnh dịch.', tiers.suggest, 'Gợi ý theo tình huống phòng dịch, phục hồi sau stress.')}
-        ${tierBlock('grow', 'Tăng trưởng', 'Mở SKU mới – up-sale', 'Vaccine phòng bệnh khách chưa nhập dù quy mô/mật độ cao — cơ hội tăng giá trị đơn.', tiers.grow, 'Tư vấn ROI phòng bệnh so với chi phí một ổ dịch.')}
-      </div>
-
-      <div class="card">
-        <div class="card-title"><h3>Script gọi & xử lý từ chối</h3></div>
-        <div class="panel"><h5>📞 Mở đầu gợi ý</h5><p>“Em thấy khu vực ${esc(d.khu_vuc)} đang có cảnh báo ${esc((regionAlerts[0] || {}).ten_benh ? regionAlerts[0].ten_benh.split(' (')[0] : 'dịch bệnh')}. Bên mình muốn gửi anh/chị phương án dự phòng và đơn nhập lại nhóm ${esc(tiers.safe[0] ? tiers.safe[0].ten : 'chủ lực')} để chủ động.”</p></div>
-        <div class="panel green"><h5>🛡️ Xử lý từ chối thường gặp</h5><ul>
-          <li><b>Sợ tồn:</b> bắt đầu ở mức An toàn, nhập đúng nhịp đã mua.</li>
-          <li><b>Giá cao:</b> so trên hiệu quả/đầu con + gắn chiết khấu theo sản lượng.</li>
-          <li><b>Chưa có nhu cầu:</b> dẫn bối cảnh vùng đang có áp lực dịch.</li>
-          <li><b>Công nợ:</b> xếp lịch giao theo đợt bán, giãn áp lực dòng tiền.</li>
-        </ul></div>
-        <div class="warning">Trợ lý chỉ chuẩn bị nội dung trao đổi; không tạo đơn, không chốt đơn trong ứng dụng.</div>
-      </div>`;
-
-    // Priority list (all customers)
-    $('#pushPriority').innerHTML = DB.distributors.map(x => {
+  function priorityHtml() {
+    return DB.distributors.map(x => {
       const a = custAgg(x);
       const ra = state.alerts.filter(al => al.tinh === x.khu_vuc);
       const sev = ra.some(al => SEV[al.muc_do] === 'high');
       const note = sev
-        ? `Khu vực đang có cảnh báo dịch mức cao — ưu tiên chuẩn bị nội dung phòng dịch & sát trùng.`
-        : `Theo dõi nhịp mua nhóm ${esc(a.topProd[0] ? a.topProd[0].ten : 'chủ lực')}; gợi ý bổ sung sản phẩm phục hồi.`;
-      return `<div class="insight" data-cust="${x.id}">
-        <h4>${esc(x.ten)} <span class="risk-badge ${sev ? 'high' : 'low'}">${sev ? 'Ưu tiên cao' : 'Theo dõi'}</span></h4>
-        <p>${note}</p></div>`;
+        ? 'Khu vực có cảnh báo dịch mức cao — ưu tiên nội dung phòng dịch & sát trùng.'
+        : `Theo dõi nhịp mua nhóm ${esc(a.topProd[0] ? a.topProd[0].ten : 'chủ lực')}; gợi ý bổ sung phục hồi.`;
+      return `<div class="insight" data-cust="${x.id}"><h4>${esc(x.ten)} <span class="risk-badge ${sev ? 'high' : 'low'}">${sev ? 'Ưu tiên cao' : 'Theo dõi'}</span></h4><p>${note}</p></div>`;
     }).join('');
-    $('#pushPriority').onclick = (e) => {
-      const b = e.target.closest('[data-cust]'); if (!b) return;
-      state.pushCustomer = b.dataset.cust; renderPush();
-      $('#push').scrollTop = 0;
-    };
   }
 
-  $('#pushSend').addEventListener('click', pushFollowUp);
-  $('#pushInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') pushFollowUp(); });
-  function pushFollowUp() {
-    const v = $('#pushInput').value.trim(); if (!v) return;
-    $('#pushInput').value = '';
-    const d = DB.distributors.find(x => x.id === state.pushCustomer);
+  function seedPushIntro() {
+    $('#pushChat').innerHTML = '';
+    pushBubble('ai', `Tôi là trợ lý Push-sale. Chọn một khách hàng phía trên (hoặc chạm thẻ bên dưới) để tôi phân tích <b>lịch sử mua</b> và gợi ý cơ hội <b>up-sale / cross-sale</b>.
+      <div class="panel"><h5>⭐ Gợi ý ưu tiên hôm nay</h5>${priorityHtml()}</div>`);
+    setPushQuick(['Phân tích Đại lý Minh Phát', 'Khách nào nên ưu tiên hôm nay?']);
+  }
+
+  function analyzeCustomer(id) {
+    const d = DB.distributors.find(x => x.id === id); if (!d) return;
+    state.pushCustomer = id;
+    renderCustChips();
+    pushBubble('user', 'Phân tích ' + esc(d.ten));
+    const t = pushThinking();
+    setTimeout(() => {
+      t.outerHTML = '<div class="bubble ai">' + analysisHtml(d) + '</div>';
+      pushScroll();
+      setPushQuick(['Khách kêu giá cao thì nói sao?', 'Nên bán kèm sản phẩm gì?', 'Vì sao gợi ý vaccine này?', 'Nên nói gì khi gọi khách?']);
+    }, 500);
+  }
+
+  function analysisHtml(d) {
     const agg = custAgg(d);
     const tiers = tierSuggestions(d, agg);
     const ra = state.alerts.filter(a => a.tinh === d.khu_vuc);
-    openSheet(`
-      <h3>Gợi ý nội dung trao đổi</h3>
-      <p class="sub">${esc(d.ten)} · ${esc(d.khu_vuc)}</p>
-      <div class="panel"><h5>💬 Anh/chị có thể nói</h5>
-        <p>“Đợt này khu ${esc(d.khu_vuc)} ${ra.length ? `đang có tín hiệu ${esc(ra[0].ten_benh.split(' (')[0])}` : 'cần chủ động phòng bệnh'}. Em gợi ý mình giữ nhịp nhập <b>${esc(tiers.safe[0] ? tiers.safe[0].ten : 'sản phẩm chủ lực')}</b>${tiers.suggest[0] ? `, đồng thời dùng thử <b>${esc(tiers.suggest[0].ten)}</b> để ${tiers.suggest[0].loai === 'sat_trung' ? 'tăng sát trùng phòng dịch' : 'hỗ trợ phục hồi đàn'}` : ''}. Bên em có chính sách theo sản lượng, anh/chị cân nhắc giúp em.”</p></div>
-      <div class="muted-note">Câu hỏi của anh/chị: “${esc(v)}”. Trợ lý gợi ý nội dung dựa trên lịch sử mua và bối cảnh dịch — không thay thao tác bán hàng.</div>`);
+    const maxMonth = Math.max(...agg.months.map(m => agg.byMonth[m]), 1);
+    const tierBlock = (cls, tag, title, why, items, action) => `
+      <div class="tier ${cls}"><h5><span class="tier-tag">${tag}</span> ${title}</h5>
+        <p class="muted-note" style="margin:0 0 6px">${why}</p>
+        ${items.map(p => `<div class="product-line" data-prod="${esc(p.ma_sp)}"><div class="pl-main"><b>${esc(p.ten)}</b><small>${esc(LOAI_LABEL[p.loai])} · ${esc(p.lieu_luong || '')}</small></div><div class="pl-price">${fmtVnd(p.gia_vnd)}</div></div>`).join('') || '<p class="muted-note">—</p>'}
+        <div class="muted-note" style="margin-top:6px">${SVG.arrowRight} ${action}</div>
+      </div>`;
+    return `
+      <p class="ans-lead"><b>${esc(d.ten)}</b> · ${esc(d.khu_vuc)} · ${esc(d.loai_hinh)}.</p>
+      <div class="kv"><b>Tổng mua (6th)</b><span>${fmtVnd(agg.total)} · công nợ ${fmtVnd(d.cong_no_vnd)}</span></div>
+      <div class="kv"><b>Quy mô</b><span>${esc(d.quy_mo)}</span></div>
+
+      <div class="panel"><h5>${SVG.trendingUp} Lịch sử mua hàng (${agg.months.length} tháng)</h5>
+        <div class="history-bars">
+          ${agg.months.map(m => `<div class="hbar"><div class="bar" style="height:${Math.max(8, agg.byMonth[m] / maxMonth * 100)}%"></div><small>${esc(m.slice(5))}/${esc(m.slice(2, 4))}</small></div>`).join('')}
+        </div>
+        <div style="height:8px"></div>
+        ${agg.topProd.slice(0, 4).map(tp => `<div class="product-line"${prodById[tp.ma] ? ` data-prod="${esc(tp.ma)}"` : ''}><div class="pl-main"><b>${esc(tp.ten)}</b><small>${tp.qty.toLocaleString('vi-VN')} đơn vị</small></div><div class="pl-price">${fmtVndShort(tp.val)}</div></div>`).join('')}
+      </div>
+
+      ${ra.length ? `<div class="panel danger"><h5>${SVG.mapPin} Bối cảnh dịch vùng ${esc(d.khu_vuc)}</h5><p>${esc(ra[0].ten_benh.split(' (')[0])}${ra.length > 1 ? ` và ${ra.length - 1} tín hiệu khác` : ''} đang được ghi nhận → nhu cầu phòng dịch & sát trùng tăng.</p></div>` : ''}
+
+      <div class="panel"><h5>${SVG.sparkles} Gợi ý đẩy hàng theo 3 mức</h5>
+        ${tierBlock('safe', 'An toàn', 'Nhập lại theo nhịp', 'Sản phẩm chủ lực khách vẫn mua đều — rủi ro thấp, dễ chốt.', tiers.safe, 'Mở đầu bằng đơn nhập lại đúng nhịp khách quen.')}
+        ${tierBlock('suggest', 'Cross-sale', 'Bán kèm', 'Nhóm bổ trợ / sát trùng khách chưa mua nhưng hợp với đàn & bối cảnh dịch.', tiers.suggest, 'Gợi ý theo tình huống phòng dịch, phục hồi sau stress.')}
+        ${tierBlock('grow', 'Up-sale', 'Mở SKU mới', 'Vaccine phòng bệnh khách chưa nhập dù quy mô lớn — tăng giá trị đơn.', tiers.grow, 'Tư vấn ROI phòng bệnh so với chi phí một ổ dịch.')}
+      </div>
+      <div class="muted-note">Chạm vào tên sản phẩm để xem chi tiết. Hỏi tiếp ở ô bên dưới để mình gợi ý lời thoại.</div>`;
   }
+
+  // Chạm vào khách trong bong bóng "ưu tiên hôm nay" -> phân tích
+  $('#pushChat').addEventListener('click', (e) => {
+    const b = e.target.closest('.insight[data-cust]'); if (b) analyzeCustomer(b.dataset.cust);
+  });
+  $('#pushQuick').addEventListener('click', (e) => { const b = e.target.closest('.quick'); if (b) askPush(b.textContent); });
+  $('#pushSend').addEventListener('click', sendPush);
+  $('#pushInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendPush(); });
+  function sendPush() { const v = $('#pushInput').value.trim(); if (!v) return; $('#pushInput').value = ''; askPush(v); }
+
+  function askPush(text) {
+    const byName = DB.distributors.find(x => norm(text).includes(norm(x.ten)));
+    if (byName) { analyzeCustomer(byName.id); return; }
+    if (/(uu tien|hom nay|khach nao)/.test(norm(text))) {
+      pushBubble('user', esc(text));
+      const t = pushThinking();
+      setTimeout(() => { t.outerHTML = '<div class="bubble ai"><p class="ans-lead">Thứ tự ưu tiên hôm nay:</p><div class="panel"><h5>⭐ Gợi ý ưu tiên</h5>' + priorityHtml() + '</div></div>'; pushScroll(); }, 450);
+      return;
+    }
+    pushBubble('user', esc(text));
+    const t = pushThinking();
+    setTimeout(() => { t.outerHTML = '<div class="bubble ai">' + pushAnswer(text) + '</div>'; pushScroll(); }, 480);
+  }
+
+  function pushAnswer(text) {
+    const q = norm(text);
+    const d = DB.distributors.find(x => x.id === state.pushCustomer);
+    if (!d) return 'Anh/chị chọn một khách hàng phía trên để tôi phân tích trước nhé.';
+    const agg = custAgg(d);
+    const tiers = tierSuggestions(d, agg);
+    const ra = state.alerts.filter(a => a.tinh === d.khu_vuc);
+    const safe = tiers.safe[0], cross = tiers.suggest[0], up = tiers.grow[0];
+    const line = (p, role) => `<div class="product-line" data-prod="${esc(p.ma_sp)}"><div class="pl-main"><span class="role-tag">${role || ROLE[p.loai] || ''}</span><b>${esc(p.ten)}</b><small>${esc(p.lieu_luong || '')}</small></div><div class="pl-price">${fmtVnd(p.gia_vnd)}</div></div>`;
+
+    if (/(gia cao|gia dat|dat qua|chiet khau| gia )/.test(' ' + q + ' ')) {
+      return `<p class="ans-lead">Khi <b>${esc(d.ten)}</b> kêu giá cao:</p><div class="panel green"><h5>💬 Hướng xử lý</h5><ul>
+        <li>So sánh trên <b>hiệu quả / đầu con</b> thay vì giá đơn vị (chi phí phòng bệnh so với thiệt hại một ổ dịch).</li>
+        <li>Gắn <b>chiết khấu theo sản lượng</b> / chính sách tích điểm đại lý.</li>
+        <li>Bắt đầu ở <b>mức An toàn</b> (${esc(safe ? safe.ten : 'sản phẩm chủ lực')}) để giảm áp lực quyết định.</li></ul></div>`;
+    }
+    if (/(ban kem|cross|kem|bo sung|them gi|phu hop)/.test(q)) {
+      return `<p class="ans-lead">Cơ hội bán kèm (cross-sale) cho <b>${esc(d.ten)}</b>:</p>${cross ? line(cross, ROLE[cross.loai] || 'Bổ trợ') : '<p class="muted-note">Khách đã phủ nhóm bổ trợ.</p>'}<div class="panel"><h5>Lý do</h5><p>Khách chưa mua nhóm này nhưng hợp với đàn${ra.length ? ' và bối cảnh dịch ' + esc(d.khu_vuc) : ''} — dễ gợi mở theo nhu cầu phục hồi / sát trùng.</p></div>`;
+    }
+    if (/(vaccine|up ?sale|sku moi|mo rong|tang truong|vi sao)/.test(q)) {
+      return `<p class="ans-lead">Cơ hội up-sale (SKU mới) cho <b>${esc(d.ten)}</b>:</p>${up ? line(up, 'Phòng bệnh') : '<p class="muted-note">Khách đã phủ vaccine chính.</p>'}<div class="panel"><h5>Lý do</h5><p>Quy mô ${esc(d.quy_mo)} nhưng chưa nhập nhóm vaccine này → rủi ro dịch lớn + cơ hội tăng giá trị đơn. Tư vấn theo <b>ROI phòng bệnh</b>.</p></div>`;
+    }
+    if (/(lich su|mua gi|mua nhieu|gan day|chu luc)/.test(q)) {
+      return `<p class="ans-lead">Lịch sử mua của <b>${esc(d.ten)}</b>:</p>${agg.topProd.slice(0, 4).map(tp => `<div class="product-line"${prodById[tp.ma] ? ` data-prod="${esc(tp.ma)}"` : ''}><div class="pl-main"><b>${esc(tp.ten)}</b><small>${tp.qty.toLocaleString('vi-VN')} đơn vị</small></div><div class="pl-price">${fmtVndShort(tp.val)}</div></div>`).join('')}<div class="muted-note" style="margin-top:6px">Tổng ${fmtVnd(agg.total)} qua ${agg.months.length} tháng · công nợ ${fmtVnd(d.cong_no_vnd)}. ${esc(d.ghi_chu)}</div>`;
+    }
+    if (/(cong no)/.test(q)) {
+      return `<p class="ans-lead">Công nợ <b>${esc(d.ten)}</b>: ${fmtVnd(d.cong_no_vnd)}.</p><div class="panel green"><h5>${SVG.chat} Gợi ý</h5><p>Xếp lịch giao theo đợt bán để giãn áp lực dòng tiền; ưu tiên đơn mức An toàn (${esc(safe ? safe.ten : 'chủ lực')}) trước khi mở SKU mới.</p></div>`;
+    }
+    // mặc định: lời thoại gọi khách + xử lý từ chối
+    return `<p class="ans-lead">Gợi ý lời thoại khi gọi <b>${esc(d.ten)}</b>:</p><div class="panel"><h5>${SVG.phone} Có thể nói</h5><p>“Đợt này khu ${esc(d.khu_vuc)} ${ra.length ? `đang có tín hiệu ${esc(ra[0].ten_benh.split(' (')[0])}` : 'cần chủ động phòng bệnh'}. Em gợi ý mình giữ nhịp nhập <b>${esc(safe ? safe.ten : 'sản phẩm chủ lực')}</b>${cross ? `, dùng thử thêm <b>${esc(cross.ten)}</b>` : ''}. Bên em có chính sách theo sản lượng, anh/chị cân nhắc giúp em.”</p></div><div class="panel green"><h5>${SVG.shield} Nếu khách từ chối</h5><ul><li><b>Sợ tồn:</b> bắt đầu mức An toàn, đúng nhịp đã mua.</li><li><b>Giá cao:</b> so hiệu quả/đầu con + chiết khấu sản lượng.</li><li><b>Chưa cần:</b> dẫn bối cảnh vùng đang có áp lực dịch.</li></ul></div>`;
+  }
+
 
   /* =======================================================================
      DISEASE MAP + MARKET INPUT
@@ -714,7 +786,7 @@
     const heats = list.filter(a => SEV[a.muc_do] === 'high').map(a => {
       const c = coordOf[a.tinh]; if (!c) return '';
       const p = project(c.lat, c.lng);
-      return `<span class="heat" style="left:${p.x}%;top:${p.y}%;width:96px;height:96px;background:radial-gradient(circle, rgba(192,57,43,.5) 0 18%, rgba(199,119,0,.34) 48%, transparent 72%)"></span>`;
+      return `<span class="heat" style="left:${p.x}%;top:${p.y}%;width:96px;height:96px;background:radial-gradient(circle, rgba(158,85,100,.5) 0 18%, rgba(199,119,0,.34) 48%, transparent 72%)"></span>`;
     }).join('');
 
     // nhãn cho vài tỉnh nổi bật nhất
@@ -900,6 +972,18 @@
      BOOT
      ===================================================================== */
   renderHome();
+
+  /* Statusbar Time Clock Updater */
+  function updateClock() {
+    const el = $('#sbTime');
+    if (!el) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    el.textContent = `${hh}:${mm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
   // Deep-link: mở thẳng một tab qua #knowledge / #push / #market
   const start = (location.hash || '').replace('#', '');
   if (['knowledge', 'push', 'market'].includes(start)) go(start);

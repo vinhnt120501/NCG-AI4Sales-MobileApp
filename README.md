@@ -2,13 +2,19 @@
 
 Phiên bản **mobile / tablet** của AI4Sales dành cho nhân viên Sale cầm đi hiện trường.
 Tổng hợp dữ liệu & flow từ bản desktop `AI4Sales/`, làm lại UI mobile-first theo bộ nhận
-diện **Anova** (xanh `#0070B0`, font *Be Vietnam Pro*, logo Anova).
+diện **Anova** (tông slate `#36677D`, font *Be Vietnam Pro*, logo Anova).
 
 ## Chạy thử
 Mở trực tiếp `index.html` bằng trình duyệt (double-click cũng được — dữ liệu nhúng sẵn
-trong `data.js`, **không cần server, chạy offline**). Tối ưu cho màn hình điện thoại/tablet;
-trên desktop hiển thị trong khung thiết bị.
+trong `data.js`, **không cần server, chạy offline**).
 
+**Tự thích ứng theo thiết bị:**
+- **iPhone** — app tràn toàn màn hình; Dynamic Island & home indicator nhường cho phần cứng máy.
+- **iPad dọc** — full-screen, nội dung căn giữa cho dễ đọc, lưới 2 cột, bản đồ lớn hơn.
+- **iPad ngang** — full-screen với **thanh điều hướng dọc bên trái** (kiểu app tablet).
+- **Máy tính** — hiển thị trong **khung iPhone 17 mô phỏng** (Dynamic Island + viền titanium) để xem thử.
+
+Nhận diện thiết bị cảm ứng bằng `pointer: coarse` / `maxTouchPoints` (class `touch` trên `<html>`).
 Deep-link nhanh tới từng tab: `index.html#knowledge`, `#push`, `#market`.
 
 ## 3 tính năng chính
