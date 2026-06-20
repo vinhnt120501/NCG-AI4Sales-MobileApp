@@ -511,7 +511,19 @@ textarea.in { min-height: 88px; resize: vertical; }
     radial-gradient(circle at 22% 12%, rgba(255,255,255,.7), transparent 12%),
     linear-gradient(160deg, #e4ebef 0%, #d5e1e7 48%, #c5d8e0 100%);
 }
+#mapLeaflet { position: absolute; inset: 0; z-index: 0; background: #dde7ec; }
+.map-shell .leaflet-container { font: inherit; background: #dde7ec; }
+.map-shell .leaflet-bottom.leaflet-right { z-index: 1002; }
+.map-shell .leaflet-control-attribution {
+  font-size: 8px; line-height: 1.5; color: var(--muted);
+  background: rgba(255,255,255,.78); padding: 0 5px; border-radius: 6px;
+  margin: 0 7px 78px 0;   /* nâng lên trên hộp chú thích */
+}
+.map-shell .leaflet-control-attribution a { color: var(--primary); }
+.map-offline { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
 .map-layer { position: absolute; inset: 0; transition: transform .32s cubic-bezier(.2,.8,.2,1); will-change: transform; }
+.map-layer.panning { cursor: grab; touch-action: none; }
+.map-layer.panning:active { cursor: grabbing; }
 .map-graticule { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
 .map-region-band {
   position: absolute; left: 0; right: 0; display: flex; align-items: center;
@@ -525,8 +537,9 @@ textarea.in { min-height: 88px; resize: vertical; }
 .pin {
   position: absolute; transform: translate(-50%, -50%); width: 13px; height: 13px;
   border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(16,36,46,.3);
-  cursor: pointer; z-index: 3; transition: transform .12s ease;
+  cursor: pointer; z-index: 3; transition: transform .12s ease; touch-action: manipulation;
 }
+.pin::after { content: ''; position: absolute; inset: -11px; border-radius: 50%; }  /* vùng chạm rộng hơn cho ngón tay */
 .pin:hover, .pin.sel { transform: translate(-50%, -50%) scale(1.45); z-index: 5; }
 .pin.high { background: var(--risk-high); }
 .pin.med { background: var(--risk-med); }
@@ -537,7 +550,7 @@ textarea.in { min-height: 88px; resize: vertical; }
   padding: 2px 6px; border-radius: 7px; box-shadow: 0 2px 8px rgba(16,36,46,.1);
   pointer-events: none; z-index: 4;
 }
-.map-tools { position: absolute; right: 10px; top: 10px; display: grid; gap: 7px; z-index: 6; }
+.map-tools { position: absolute; right: 10px; top: 10px; display: grid; gap: 7px; z-index: 1000; }
 .map-tool {
   width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.94);
   border-radius: 10px; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(16,36,46,.12);
@@ -546,7 +559,8 @@ textarea.in { min-height: 88px; resize: vertical; }
 .map-legend {
   position: absolute; left: 10px; bottom: 10px; right: 10px;
   background: rgba(255,255,255,.94); border: 1px solid rgba(255,255,255,.9);
-  border-radius: 13px; padding: 9px 11px; box-shadow: 0 10px 26px rgba(16,36,46,.12); z-index: 6;
+  border-radius: 13px; padding: 9px 11px; box-shadow: 0 10px 26px rgba(16,36,46,.12); z-index: 1000;
+  pointer-events: none;   /* chú thích chỉ để xem, không chặn kéo/zoom bản đồ bên dưới */
 }
 .map-legend .ml-top { display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 700; color: var(--muted); }
 .heat-scale { height: 8px; border-radius: 999px; margin: 6px 0 5px;
@@ -554,10 +568,10 @@ textarea.in { min-height: 88px; resize: vertical; }
 .scale-labels { display: flex; justify-content: space-between; font-size: 9px; font-weight: 700; color: var(--muted); }
 
 .map-callout {
-  position: absolute; left: 10px; top: 10px; max-width: 200px; z-index: 7;
+  position: absolute; left: 10px; top: 10px; max-width: 200px; z-index: 1001;
   background: rgba(255,255,255,.96); border: 1px solid var(--line);
   border-radius: 13px; padding: 10px 11px; box-shadow: 0 12px 28px rgba(16,36,46,.18);
-  font-size: 11px; display: none;
+  font-size: 11px; display: none; pointer-events: none;
 }
 .map-callout.show { display: block; }
 .map-callout h5 { margin: 0 0 3px; font-size: 12px; color: var(--primary-dark); }

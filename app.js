@@ -70,6 +70,7 @@
     selectedAlert: null,
     mapZoom: 1,
     mapFocus: { x: 50, y: 50 },
+    mapPan: { x: 0, y: 0 },
     kbMode: 'diagnose',
     pushCustomer: DB.distributors[0].id,
   };
@@ -722,7 +723,7 @@
   function project(lat, lng) {
     const x = (lng - VN.lngMin) / (VN.lngMax - VN.lngMin);
     const y = (VN.latMax - lat) / (VN.latMax - VN.latMin);
-    return { x: 10 + x * 78, y: 6 + y * 86 };   // padding bên trong khung
+    return { x: 10 + x * 78, y: 5 + y * 72 };   // padding + chừa chỗ cho chú thích phía dưới
   }
 
   function filteredAlerts() {
@@ -761,99 +762,102 @@
       state.mapFilter[g] = (state.mapFilter[g] === k && k !== 'all') ? 'all' : k;
       if (g === 'animal' && k === 'all') state.mapFilter.animal = 'all';
       state.selectedAlert = null;
-      state.mapZoom = 1; state.mapFocus = { x: 50, y: 50 };
+      state.mapZoom = 1; state.mapFocus = { x: 50, y: 50 }; state.mapPan = { x: 0, y: 0 };
       renderMarket();
     };
   }
 
-  function renderMap() {
-    const list = filteredAlerts();
-    // jitter cho các cảnh báo cùng tỉnh
-    const seen = {};
-    const pins = list.map((a, i) => {
-      const c = coordOf[a.tinh]; if (!c) return '';
-      const n = seen[a.tinh] = (seen[a.tinh] || 0) + 1;
-      const p = project(c.lat, c.lng);
-      const off = (n - 1) * 3.2;
-      const x = Math.min(94, p.x + (n % 2 ? off : -off));
-      const y = Math.min(94, p.y + (n > 2 ? 3 : 0));
-      const sev = SEV[a.muc_do];
-      const sel = state.selectedAlert === a.id ? 'sel' : '';
-      return `<span class="pin ${sev} ${sel}" style="left:${x}%;top:${y}%" data-id="${esc(a.id)}"></span>`;
-    }).join('');
+  // ----- Bản đồ thật (Leaflet) -----
+  const SEV_COLOR = { high: '#9E5564', med: '#C77700', low: '#4C825C' };
+  let LMap = null, LMarkers = null, LHeat = null, LById = {};
 
-    // heat blobs ở các tỉnh có cảnh báo nặng
-    const heats = list.filter(a => SEV[a.muc_do] === 'high').map(a => {
-      const c = coordOf[a.tinh]; if (!c) return '';
-      const p = project(c.lat, c.lng);
-      return `<span class="heat" style="left:${p.x}%;top:${p.y}%;width:96px;height:96px;background:radial-gradient(circle, rgba(158,85,100,.5) 0 18%, rgba(199,119,0,.34) 48%, transparent 72%)"></span>`;
-    }).join('');
-
-    // nhãn cho vài tỉnh nổi bật nhất
-    const byProv = {};
-    list.forEach(a => { byProv[a.tinh] = (byProv[a.tinh] || 0) + sevRank(a.muc_do); });
-    const labels = Object.entries(byProv).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t]) => {
-      const c = coordOf[t]; if (!c) return '';
-      const p = project(c.lat, c.lng);
-      return `<span class="pin-label" style="left:${p.x}%;top:${p.y}%">${esc(t)}</span>`;
-    }).join('');
-
-    $('#mapShell').innerHTML = `
-      <div class="map-layer" id="mapLayer">
-        <svg class="map-graticule" viewBox="0 0 100 100" preserveAspectRatio="none">
-          ${[20, 40, 60, 80].map(x => `<line x1="${x}" y1="0" x2="${x}" y2="100" stroke="rgba(0,72,112,.10)" stroke-width=".3" stroke-dasharray="1.5 2"/>`).join('')}
-          ${[20, 40, 60, 80].map(y => `<line x1="0" y1="${y}" x2="100" y2="${y}" stroke="rgba(0,72,112,.10)" stroke-width=".3" stroke-dasharray="1.5 2"/>`).join('')}
-        </svg>
-        <div class="map-region-band" style="top:11%">Miền Bắc</div>
-        <div class="map-region-band" style="top:44%">Miền Trung</div>
-        <div class="map-region-band" style="top:71%">Miền Nam</div>
-        ${heats}${pins}${labels}
-      </div>
+  function ensureLeaflet() {
+    if (LMap) return true;
+    const shell = $('#mapShell');
+    shell.innerHTML = `
+      <div id="mapLeaflet"></div>
       <div class="map-tools"><div class="map-tool" data-z="in" title="Phóng to">+</div><div class="map-tool" data-z="out" title="Thu nhỏ">−</div><div class="map-tool" data-z="loc" title="Khu vực phụ trách">⌖</div></div>
       <div class="map-callout" id="mapCallout"></div>
       <div class="map-legend">
-        <div class="ml-top"><span>Nguy cơ dịch bệnh · ${list.length} ghi nhận</span><span id="mapZoomLabel">${state.mapZoom > 1 ? 'Zoom ' + state.mapZoom.toFixed(1) + '×' : $('#mapUpdated').textContent}</span></div>
+        <div class="ml-top"><span>Nguy cơ dịch bệnh · <span id="mapCount">0</span> ghi nhận</span><span id="mapZoomLabel">${$('#mapUpdated').textContent}</span></div>
         <div class="heat-scale"></div>
         <div class="scale-labels"><span>Ổn định</span><span>Theo dõi</span><span>Cao</span></div>
       </div>`;
 
-    $('#mapShell').onclick = (e) => {
-      const tool = e.target.closest('[data-z]');
-      if (tool) {
-        const z = tool.dataset.z;
-        if (z === 'in') setZoom(state.mapZoom + 0.4);
-        else if (z === 'out') setZoom(state.mapZoom - 0.4);
-        else { const c = coordOf['Đồng Nai']; const p = project(c.lat, c.lng); setZoom(2.2, p.x, p.y); toast('Đã phóng vào khu vực phụ trách — Đông Nam Bộ'); }
-        return;
-      }
-      const pin = e.target.closest('.pin');
-      if (pin) { selectAlert(pin.dataset.id); }
-      else { const co = $('#mapCallout'); if (co) co.classList.remove('show'); state.selectedAlert = null; $$('.pin').forEach(p => p.classList.remove('sel')); }
-    };
+    if (typeof L === 'undefined') {
+      $('#mapLeaflet').innerHTML = '<div class="map-offline">Không tải được bản đồ — kiểm tra kết nối mạng rồi tải lại.</div>';
+      return false;
+    }
 
-    applyZoom();
+    LMap = L.map('mapLeaflet', { zoomControl: false, minZoom: 4, maxZoom: 12, scrollWheelZoom: true, attributionControl: true })
+      .setView([16.2, 106.3], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19, attribution: '© OpenStreetMap · © CARTO'
+    }).addTo(LMap);
+    LMap.fitBounds([[8.3, 102.0], [23.6, 110.2]], { padding: [12, 12] });   // khung vừa lãnh thổ Việt Nam
+    LMap.createPane('pins'); LMap.getPane('pins').style.zIndex = 450;
+    LMarkers = L.layerGroup().addTo(LMap);
+
+    shell.querySelector('.map-tools').addEventListener('click', (e) => {
+      const t = e.target.closest('[data-z]'); if (!t) return;
+      if (t.dataset.z === 'in') LMap.zoomIn();
+      else if (t.dataset.z === 'out') LMap.zoomOut();
+      else { const c = coordOf['Đồng Nai']; if (c) { LMap.flyTo([c.lat, c.lng], 8); toast('Đã phóng vào khu vực phụ trách — Đông Nam Bộ'); } }
+    });
+    LMap.on('click', () => { const co = $('#mapCallout'); if (co) co.classList.remove('show'); state.selectedAlert = null; });
+    LMap.on('zoomend', updateZoomLabel);
+    return true;
+  }
+
+  function updateZoomLabel() {
+    const zl = $('#mapZoomLabel'); if (!zl || !LMap) return;
+    const z = LMap.getZoom();
+    zl.textContent = z > 5 ? 'Zoom ' + z + '×' : $('#mapUpdated').textContent;
+  }
+
+  function renderMap() {
+    const list = filteredAlerts();
+    const ok = ensureLeaflet();
+    const cnt = $('#mapCount'); if (cnt) cnt.textContent = list.length;
+
+    if (ok) {
+      LMarkers.clearLayers();
+      if (LHeat) { LMap.removeLayer(LHeat); LHeat = null; }
+      LById = {};
+      const seen = {}, heatPts = [];
+      list.forEach(a => {
+        const c = coordOf[a.tinh]; if (!c) return;
+        const n = seen[a.tinh] = (seen[a.tinh] || 0) + 1;
+        const ang = (n - 1) * 1.1, rad = (n - 1) * 0.07;   // toả nhẹ khi nhiều cảnh báo cùng tỉnh
+        const lat = c.lat + Math.sin(ang) * rad, lng = c.lng + Math.cos(ang) * rad;
+        const sev = SEV[a.muc_do];
+        const m = L.circleMarker([lat, lng], {
+          pane: 'pins', radius: sev === 'high' ? 8 : 6, color: '#fff', weight: 2,
+          fillColor: SEV_COLOR[sev], fillOpacity: .95
+        });
+        m.on('click', (e) => { L.DomEvent.stopPropagation(e); selectAlert(a.id); });
+        m.addTo(LMarkers);
+        LById[a.id] = { m, sev };
+        heatPts.push([c.lat, c.lng, sevRank(a.muc_do) / 3]);
+      });
+      if (typeof L.heatLayer === 'function' && heatPts.length) {
+        LHeat = L.heatLayer(heatPts, { radius: 34, blur: 24, minOpacity: .25, max: 1,
+          gradient: { 0.2: '#4C825C', 0.5: '#C77700', 0.85: '#9E5564' } }).addTo(LMap);
+      }
+      // Leaflet cần đo lại kích thước sau khi tab hiện ra
+      setTimeout(() => LMap && LMap.invalidateSize(), 60);
+    }
+
     renderMapStats(list);
     renderAlertList(list);
-  }
-
-  function setZoom(z, fx, fy) {
-    state.mapZoom = Math.max(1, Math.min(3, Math.round(z * 10) / 10));
-    if (fx != null && state.mapZoom > 1) state.mapFocus = { x: fx, y: fy };
-    if (state.mapZoom === 1) state.mapFocus = { x: 50, y: 50 };
-    applyZoom();
-  }
-  function applyZoom() {
-    const layer = $('#mapLayer'); if (!layer) return;
-    layer.style.transformOrigin = state.mapFocus.x + '% ' + state.mapFocus.y + '%';
-    layer.style.transform = 'scale(' + state.mapZoom + ')';
-    const zl = $('#mapZoomLabel');
-    if (zl) zl.textContent = state.mapZoom > 1 ? 'Zoom ' + state.mapZoom.toFixed(1) + '×' : $('#mapUpdated').textContent;
   }
 
   function selectAlert(id) {
     const a = state.alerts.find(x => x.id === id); if (!a) return;
     state.selectedAlert = id;
-    $$('.pin').forEach(p => p.classList.toggle('sel', p.dataset.id === id));
+    Object.values(LById).forEach(o => o.m.setStyle({ radius: o.sev === 'high' ? 8 : 6, weight: 2 }));
+    const sel = LById[id];
+    if (sel) { sel.m.setStyle({ radius: 11, weight: 3 }); sel.m.bringToFront(); if (LMap) LMap.panTo(sel.m.getLatLng()); }
     const sev = SEV[a.muc_do];
     const co = $('#mapCallout');
     if (co) {
