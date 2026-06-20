@@ -67,80 +67,23 @@ body {
 
 /* ----------------------------------------------------------------- Shell */
 .stage {
-  min-height: 100vh;
+  min-height: 100vh; min-height: 100dvh;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 0;
 }
 
+/* Khung app không còn viền điện thoại — trên máy tính căn giữa thành cột mobile, trên điện thoại full màn hình */
 .device {
   width: 100%;
   max-width: 442px;
-  height: min(924px, calc(100vh - 44px));
+  height: 100vh; height: 100dvh;
   background: var(--bg);
-  border-radius: 50px;
-  /* viền titanium mỏng kiểu iPhone 17 */
-  box-shadow:
-    0 28px 64px rgba(16, 36, 46, 0.30),
-    0 0 0 2px #000,
-    0 0 0 13px #2b2b30,
-    0 0 0 14px #45454c,
-    0 0 0 15px #1a1a1e;
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
-}
-
-.statusbar {
-  flex: 0 0 auto;
-  height: 54px;
-  padding: 0 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1d1d1f;
-  background: var(--card);
-  position: relative;
-  z-index: 25;
-}
-.sb-time { letter-spacing: .01em; font-variant-numeric: tabular-nums; }
-.sb-icons { display: inline-flex; gap: 6px; align-items: center; color: #1d1d1f; }
-.sb-ico { display: block; fill: currentColor; }
-.sb-5g { font-size: 13px; font-weight: 700; letter-spacing: .01em; }
-
-/* Dynamic Island */
-.dynamic-island {
-  position: absolute;
-  top: 13px; left: 50%;
-  transform: translateX(-50%);
-  width: 118px; height: 33px;
-  background: #000;
-  border-radius: 20px;
-  z-index: 35;
-  display: flex; align-items: center; justify-content: flex-end;
-  padding-right: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-}
-.di-cam {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 32%, #34507a 0 38%, #0a0e16 62%);
-  box-shadow: inset 0 0 0 1px rgba(90, 120, 175, 0.45);
-}
-
-/* Home indicator */
-.home-indicator {
-  position: absolute;
-  bottom: 8px; left: 50%;
-  transform: translateX(-50%);
-  width: 135px; height: 5px;
-  border-radius: 999px;
-  background: rgba(20, 20, 22, 0.85);
-  z-index: 40;
-  pointer-events: none;
 }
 
 .app {
@@ -651,76 +594,50 @@ textarea.in { min-height: 88px; resize: vertical; }
 .pill.amber { background: var(--warn-soft); color: var(--warn); }
 .empty { text-align: center; color: var(--muted); font-size: 12px; padding: 18px 8px; }
 
-/* ----------------------------------------------------------------- Responsive */
-/* Real phones: full-bleed, no device chrome */
-@media (max-width: 560px) {
-  .stage { padding: 0; align-items: stretch; }
-  .device {
-    max-width: 100%; height: 100vh; height: 100dvh;
-    border-radius: 0; box-shadow: none;
-  }
-  .dynamic-island, .home-indicator { display: none; }
-  .statusbar { height: auto; min-height: 46px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 6px; }
-  .tabbar { padding-bottom: max(12px, env(safe-area-inset-bottom)); height: auto; min-height: 74px; }
-  .screen { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-}
+/* ----------------------------------------------------------------- Responsive
+   Giao diện TỰ điều chỉnh theo kích thước màn hình (không phụ thuộc cảm ứng):
+   • Điện thoại (hẹp)          → cột mobile, full màn hình
+   • Tablet dọc / cửa sổ vừa   → dùng bề ngang, lưới 2 cột, bản đồ to hơn
+   • Tablet ngang / desktop    → thanh điều hướng dọc bên trái (kiểu app tablet)
+   html.touch chỉ lo safe-area (tai thỏ / home bar) của thiết bị thật. */
 
-/* Tablet & up (DESKTOP preview): roomier framed app */
-@media (min-width: 720px) {
-  .device { max-width: 480px; height: min(940px, calc(100vh - 48px)); }
-  .feature p, .bubble { font-size: 13px; }
-}
-
-/* =========================================================================
-   THIẾT BỊ CẢM ỨNG THẬT (iPhone / iPad) — chạy full-screen, bỏ khung mô phỏng.
-   Máy tính (không cảm ứng) vẫn giữ khung iPhone ở trên để xem thử.
-   ========================================================================= */
-html.touch .stage { padding: 0; align-items: stretch; }
-html.touch .device {
-  max-width: 100%; width: 100%;
-  height: 100vh; height: 100dvh;
-  border-radius: 0; box-shadow: none;
-}
-html.touch .dynamic-island,
-html.touch .home-indicator { display: none; }
-html.touch .statusbar {
-  height: auto; min-height: 46px;
-  padding-top: max(10px, env(safe-area-inset-top));
-  padding-bottom: 6px;
-}
+/* Safe-area cho thiết bị thật */
+html.touch .app { padding-top: env(safe-area-inset-top); }
 html.touch .tabbar { padding-bottom: max(12px, env(safe-area-inset-bottom)); height: auto; min-height: 74px; }
 html.touch .screen { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+/* Thiết bị thật: app tràn viền màn hình (máy tính giữ cột căn giữa) */
+html.touch .device { max-width: 100%; }
 
-/* iPad DỌC: căn giữa nội dung cho dễ đọc + lưới 2 cột + bản đồ lớn hơn */
-@media (min-width: 760px) and (orientation: portrait) {
-  html.touch .screen {
-    padding-left: clamp(22px, 9%, 230px);
-    padding-right: clamp(22px, 9%, 230px);
-  }
-  html.touch .feature-grid { grid-template-columns: 1fr 1fr; }
-  html.touch .map-shell { height: 460px; }
-  html.touch .bubble { max-width: 84%; }
+/* TABLET dọc & cửa sổ trung bình — min-height tránh kích hoạt khi điện thoại xoay ngang */
+@media (min-width: 760px) and (min-height: 600px) {
+  .device { max-width: 860px; }
+  .screen { padding-left: clamp(22px, 7%, 120px); padding-right: clamp(22px, 7%, 120px); }
+  .feature-grid { grid-template-columns: 1fr 1fr; }
+  .feature p, .bubble { font-size: 13px; }
+  .map-shell { height: 460px; }
+  .bubble { max-width: 84%; }
 }
 
-/* iPad NGANG: thanh điều hướng dọc bên trái + nội dung bên phải (kiểu app tablet) */
-@media (min-width: 1000px) and (orientation: landscape) {
-  html.touch .app { flex-direction: row; }
-  html.touch .tabbar {
+/* TABLET ngang / DESKTOP rộng — điều hướng dọc bên trái */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .device { max-width: 1180px; }
+  .app { flex-direction: row; }
+  .tabbar {
     position: relative; order: -1;
     display: flex; flex-direction: column; justify-content: flex-start; gap: 8px;
-    width: 108px; flex: 0 0 108px; height: auto; min-height: 0;
+    width: 112px; flex: 0 0 112px; height: auto; min-height: 0;
     border-top: 0; border-right: 1px solid var(--line);
     padding: 18px 10px; background: var(--card);
   }
-  html.touch .tab { padding: 14px 4px; border-radius: 16px; font-size: 11px; gap: 5px; }
-  html.touch .tab .tab-ico { font-size: 23px; }
-  html.touch .app > .screen {
-    padding: 18px clamp(28px, 7%, 170px) 32px;
-  }
-  html.touch .feature-grid { grid-template-columns: 1fr 1fr; }
-  html.touch .map-shell { height: 480px; }
-  html.touch .bubble { max-width: 78%; }
-  html.touch .toast { bottom: 24px; }
+  html.touch .tabbar { padding-bottom: 18px; }      /* nav sang bên → bỏ chừa đáy */
+  .tab { padding: 14px 4px; border-radius: 16px; font-size: 11px; gap: 5px; }
+  .tab .tab-ico { font-size: 23px; }
+  .app > .screen { padding: 18px clamp(28px, 6%, 150px) 32px; }
+  html.touch .app > .screen { padding-bottom: 32px; }
+  .feature-grid { grid-template-columns: 1fr 1fr; }
+  .map-shell { height: 520px; }
+  .bubble { max-width: 72%; }
+  .toast { bottom: 24px; }
 }
 
 /* Custom inline SVG vector icons */

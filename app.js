@@ -977,17 +977,6 @@
      ===================================================================== */
   renderHome();
 
-  /* Statusbar Time Clock Updater */
-  function updateClock() {
-    const el = $('#sbTime');
-    if (!el) return;
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    el.textContent = `${hh}:${mm}`;
-  }
-  updateClock();
-  setInterval(updateClock, 30000);
   // Deep-link: mở thẳng một tab qua #knowledge / #push / #market
   const start = (location.hash || '').replace('#', '');
   if (['knowledge', 'push', 'market'].includes(start)) go(start);
