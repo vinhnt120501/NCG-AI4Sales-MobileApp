@@ -367,14 +367,14 @@ body {
   background: linear-gradient(transparent, var(--bg) 28%);
 }
 .composer input {
-  flex: 1; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+  flex: 1; height: 48px; border: 1px solid var(--line); border-radius: 14px; padding: 0 14px;
   font: inherit; font-size: 13px; background: #fff; outline: none; color: var(--text);
 }
 .composer input:focus { border-color: var(--primary-line); box-shadow: 0 0 0 3px rgba(54, 103, 125, 0.10); }
 .send {
-  width: 48px; min-width: 48px; border: 1px solid transparent; border-radius: 14px;
+  width: 48px; min-width: 48px; height: 48px; border: 1px solid transparent; border-radius: 14px;
   background: var(--primary); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; padding: 0; margin: 0;
 }
 .send:hover { background: var(--primary-dark); }
 
@@ -669,3 +669,118 @@ html.touch .device { max-width: 100%; }
   font-size: 1.05em;
   vertical-align: -0.15em;
 }
+
+/* Voice-to-Text Button */
+.voice-btn {
+  width: 48px; min-width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 14px;
+  background: #fff; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0; margin: 0;
+  transition: all 0.2s ease;
+}
+.voice-btn:hover { background: var(--line-soft); color: var(--primary); }
+.voice-btn.listening {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+  animation: pulse-listening 1.5s infinite;
+}
+@keyframes pulse-listening {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(158, 85, 100, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(158, 85, 100, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(158, 85, 100, 0); }
+}
+
+/* Multi-turn Diagnosis styles */
+.diag-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+.diag-match-card {
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.dm-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.dm-rank {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.dm-name {
+  flex: 1;
+  font-size: 13px;
+}
+.dm-conf {
+  color: var(--primary-dark);
+  font-size: 12px;
+}
+.dm-body {
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px dashed rgba(54, 103, 125, 0.15);
+  padding-top: 4px;
+}
+.question-panel {
+  border-left: 4px solid var(--primary);
+  background: #f7f9fa;
+  margin-top: 10px !important;
+  text-align: left;
+}
+.question-panel h5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--primary-dark);
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: pulse-dot-anim 1.5s infinite;
+}
+@keyframes pulse-dot-anim {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+.quick-reply-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  justify-content: flex-start;
+}
+.qr-btn {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.qr-btn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary-line);
+}
+

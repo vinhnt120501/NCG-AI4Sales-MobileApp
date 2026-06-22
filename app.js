@@ -73,6 +73,12 @@
     mapPan: { x: 0, y: 0 },
     kbMode: 'diagnose',
     pushCustomer: DB.distributors[0].id,
+
+    // Multi-turn Diagnosis state
+    diagStep: 0,
+    diagQuery: null,
+    diagScores: null,
+    diagFollowUpAsked: null
   };
 
   /* =======================================================================
@@ -244,6 +250,10 @@
 
   function setMode(mode, reset) {
     state.kbMode = mode;
+    state.diagStep = 0;
+    state.diagQuery = null;
+    state.diagScores = null;
+    state.diagFollowUpAsked = null;
     $$('#kbSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
     const cfg = KB_MODES[mode];
     $('#kbInput').placeholder = cfg.placeholder;
@@ -304,6 +314,11 @@
     }, 480);
   }
 
+  // Expose to window for quick reply buttons
+  window.askDiagReply = (val) => {
+    ask(val);
+  };
+
   /* Intent router (ưu tiên ý định rõ ràng, nếu không dùng tab đang chọn) */
   function route(text) {
     const q = norm(text);
@@ -311,6 +326,12 @@
     const prod = findProduct(text);
     const isPromo = /(khuyen mai|uu dai|combo|tang|chiet khau|tich diem|km|khach moi)/.test(q);
     const dis = findDiseaseByName(text);
+
+    if (mode === 'diagnose' && state.diagStep === 1) {
+      if (!isPromo && !(prod && /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q))) {
+        return answerDiagnoseFollowUp(text);
+      }
+    }
 
     if (isPromo) { setMode('promo'); return answerPromo(text, true); }
     if (prod && (mode === 'product' || /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q) || mode !== 'diagnose')) {
@@ -357,12 +378,83 @@
 
   function answerDiagnose(text, scores) {
     const top = scores[0];
+
+    // Save state
+    state.diagStep = 1;
+    state.diagQuery = text;
+    state.diagScores = scores;
+
+    // Find unmatched symptoms of the top disease
+    const normQ = norm(text);
+    const unmatched = top.d.trieu_chung.filter(sym => {
+      const symNorm = norm(sym);
+      const words = symNorm.split(' ').filter(w => w.length >= 3 && !STOP.has(w));
+      return !words.some(w => normQ.includes(w));
+    });
+
+    let followUpQ = "";
+    if (unmatched.length > 0) {
+      const qs = unmatched.slice(0, 2).map(s => `<b>${esc(s)}</b>`);
+      if (qs.length === 1) {
+        followUpQ = `Đàn vật nuôi có biểu hiện bị ${qs[0]} hay không?`;
+      } else {
+        followUpQ = `Đàn vật nuôi có biểu hiện bị ${qs.join(' hoặc ')} hay không?`;
+      }
+    } else {
+      followUpQ = `Đàn bị bao lâu rồi và có lây lan nhanh không? Trại đã tiêm vaccine phòng bệnh này chưa?`;
+    }
+    state.diagFollowUpAsked = followUpQ;
+
+    const animal = top.d.vat_nuoi === 'heo' ? 'Heo' : 'Gà';
+    const matchesHtml = scores.slice(0, 2).map((x, idx) => {
+      const d = x.d;
+      const conf = Math.min(88, 50 + x.score * 8);
+      return `
+        <div class="diag-match-card">
+          <div class="dm-header">
+            <span class="dm-rank">#${idx + 1}</span>
+            <span class="dm-name">${esc(d.ten_benh)}</span>
+            <span class="dm-conf">${conf}%</span>
+          </div>
+          <div class="dm-body">
+            <small>Triệu chứng khớp: ${esc(x.hits.join(', '))}</small>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <p class="ans-lead">Dựa trên mô tả ban đầu (${animal}), tôi phát hiện <b>${scores.slice(0, 2).length} bệnh</b> có khả năng phù hợp nhất:</p>
+      <div class="diag-matches">
+        ${matchesHtml}
+      </div>
+
+      <div class="panel question-panel">
+        <h5><span class="pulse-dot"></span> Câu hỏi xác minh từ Trợ lý</h5>
+        <p>${followUpQ}</p>
+      </div>
+
+      <div class="quick-reply-row">
+        <button class="qr-btn" onclick="window.askDiagReply('Có, có triệu chứng này')">Có, có triệu chứng trên</button>
+        <button class="qr-btn" onclick="window.askDiagReply('Không bị')">Không bị</button>
+        <button class="qr-btn" onclick="window.askDiagReply('Bị nhẹ / Chưa rõ')">Bị nhẹ / Chưa rõ</button>
+      </div>
+      <div class="muted-note" style="margin-top: 8px;">Vui lòng phản hồi thông tin trên để tôi đưa ra chẩn đoán chính xác nhất kèm phác đồ và sản phẩm điều trị.</div>
+    `;
+  }
+
+  function answerDiagnoseFollowUp(text) {
+    const combinedText = state.diagQuery + ' ' + text;
+    const updatedScores = diagnose(combinedText);
+    const finalScores = updatedScores.length ? updatedScores : state.diagScores;
+
+    const top = finalScores[0];
     const d = top.d;
     const conf = Math.min(94, 56 + top.score * 7);
     const animal = d.vat_nuoi === 'heo' ? 'Heo' : 'Gà';
     const risk = SEV[d.muc_do];
     const riskTxt = risk === 'high' ? (d.muc_do === 'nguy_hiem' ? 'Khẩn cấp' : 'Cao') : risk === 'med' ? 'Trung bình' : 'Thấp';
-    const diff = scores.slice(1).map(s => s.d.ten_benh.split(' (')[0]);
+    const diff = finalScores.slice(1).map(s => s.d.ten_benh.split(' (')[0]);
 
     const prods = (d.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean);
     const prodHtml = prods.map(p => `
@@ -376,43 +468,34 @@
     const expertMsg = typeof d.can_chuyen_gia === 'string' ? d.can_chuyen_gia
       : 'Trường hợp diễn biến nhanh / lan rộng — chuyển bộ phận kỹ thuật hoặc bác sĩ thú y xác minh, không tự kê đơn đặc trị.';
 
+    // Reset diagnostic state
+    state.diagStep = 0;
+    state.diagQuery = null;
+    state.diagScores = null;
+    state.diagFollowUpAsked = null;
+
     return `
-      <p class="ans-lead">Dựa trên mô tả (${animal}), khả năng cao nhất là <b>${esc(d.ten_benh)}</b>.</p>
+      <p class="ans-lead">Kết hợp với thông tin bổ sung, tôi chẩn đoán đàn **${animal}** khả năng cao nhất bị: <b>${esc(d.ten_benh)}</b>.</p>
       <div class="confidence"><i style="width:${conf}%"></i></div>
-      <div class="muted-note">Độ tin cậy gợi ý ~${conf}% · mức rủi ro:
+      <div class="muted-note">Độ tin cậy sau xác minh ~${conf}% · mức rủi ro:
         <b style="color:${risk === 'high' ? 'var(--danger)' : risk === 'med' ? 'var(--warn)' : 'var(--ok)'}">${riskTxt}</b></div>
 
-      <div class="panel"><h5>🧪 Hồ sơ ca & chẩn đoán phân biệt</h5>
+      <div class="panel"><h5>🧪 Chẩn đoán phân biệt & xét nghiệm</h5>
         <p>${esc(d.chan_doan)}</p>
         ${diff.length ? `<div class="kv"><b>Phân biệt với</b><span>${esc(diff.join(', '))}</span></div>` : ''}
         <div class="kv"><b>Cần xét nghiệm</b><span>${esc(d.xet_nghiem || 'Theo chỉ định kỹ thuật')}</span></div>
       </div>
 
-      <div class="panel"><h5>${SVG.science} Cơ sở khoa học & dịch tễ</h5>
-        <p>${esc(d.co_che_benh_sinh || '')}</p>
-        ${d.benh_tich ? `<div class="kv"><b>Bệnh tích</b><span>${esc(d.benh_tich)}</span></div>` : ''}
-      </div>
-
-      ${d.chi_so_canh_bao ? `<div class="panel"><h5>${SVG.alert} Cảnh báo sớm tại trại</h5><p>${esc(d.chi_so_canh_bao)}</p></div>` : ''}
-
-      <div class="panel green"><h5>${SVG.list} Hướng xử lý tham khảo</h5>
+      <div class="panel green"><h5>${SVG.list} Khuyến nghị hành động (Phác đồ xử lý)</h5>
         <ul>${splitSteps(d.buoc_xu_ly).map(s => `<li>${esc(s)}</li>`).join('')}</ul>
         ${d.vaccine_phong && prodById[d.vaccine_phong] ? `<div class="kv" style="margin-top:6px"><b>Vaccine phòng</b><span>${esc(prodById[d.vaccine_phong].ten)}</span></div>` : ''}
       </div>
 
-      ${prods.length ? `<div class="panel"><h5>${SVG.package} Sản phẩm theo vai trò (tham khảo)</h5>${prodHtml}</div>` : ''}
-
-      <div class="panel"><h5>${SVG.help} Nên hỏi thêm để chắc chắn</h5>
-        <ul>
-          <li>Tỷ lệ chết / tỷ lệ mắc và tốc độ lan trong đàn?</li>
-          <li>Lịch tiêm phòng, tình trạng nhập đàn mới, nguồn nước – thức ăn?</li>
-          <li>Các hộ/trại xung quanh có dấu hiệu tương tự không?</li>
-        </ul>
-      </div>
+      ${prods.length ? `<div class="panel"><h5>${SVG.package} Thuốc điều trị & Liều lượng sử dụng</h5>${prodHtml}</div>` : ''}
 
       ${needExpert ? `<div class="flag-expert">${SVG.flag} <span><b>Chuyển chuyên gia.</b> ${esc(expertMsg)}</span></div>` : ''}
-      <div class="warning">AI chỉ hỗ trợ tư vấn ban đầu. Hướng điều trị và liều dùng cần đối chiếu nhãn sản phẩm, tài liệu kỹ thuật và ý kiến chuyên môn.</div>
-      ${srcRow(['Dịch tễ học & cảnh báo sớm', 'An toàn sinh học & vaccine', 'Catalogue sản phẩm'])}`;
+      <div class="warning">AI chỉ hỗ trợ tư vấn ban đầu. Hướng điều trị và liều dùng cần đối chiếu nhãn sản phẩm, tài liệu kỹ thuật và ý kiến chuyên môn từ Anova.</div>
+      ${srcRow(['Dịch tễ học Anova', 'An toàn sinh học & vaccine', 'Catalogue sản phẩm'])}`;
   }
   function splitSteps(s) {
     return String(s || '').split(/[;.]\s+/).map(x => x.trim()).filter(x => x.length > 3);
@@ -972,10 +1055,85 @@
     toast(`Đã lưu tín hiệu tại ${prov} → cập nhật bản đồ & dashboard.`);
   }
 
+  // Voice input recognition helper
+  function initVoiceInput(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      btn.style.display = 'none'; // hide voice button if browser doesn't support Web Speech API
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    let isListening = false;
+
+    btn.addEventListener('click', () => {
+      if (isListening) {
+        recognition.stop();
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
+
+    recognition.onstart = () => {
+      isListening = true;
+      btn.classList.add('listening');
+      input.placeholder = 'Đang lắng nghe bằng giọng nói...';
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      btn.classList.remove('listening');
+      if (inputId === 'kbInput') {
+        const mode = state.kbMode;
+        input.placeholder = KB_MODES[mode]?.placeholder || 'Nhập câu hỏi...';
+      } else {
+        input.placeholder = 'Hỏi tiếp về khách này…';
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      input.value = text;
+      // Auto-trigger send
+      if (inputId === 'kbInput') {
+        sendKb();
+      } else if (inputId === 'pushInput') {
+        sendPush();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      isListening = false;
+      btn.classList.remove('listening');
+      if (event.error === 'not-allowed') {
+        toast('Không thể truy cập Micro. Vui lòng mở bằng HTTPS/localhost hoặc cấp quyền cho trình duyệt.');
+      } else {
+        toast('Lỗi micro: ' + event.error);
+      }
+    };
+  }
+
   /* =======================================================================
      BOOT
      ===================================================================== */
   renderHome();
+
+  // Initialize voice recognition
+  initVoiceInput('kbVoice', 'kbInput');
+  initVoiceInput('pushVoice', 'pushInput');
 
   // Deep-link: mở thẳng một tab qua #knowledge / #push / #market
   const start = (location.hash || '').replace('#', '');
