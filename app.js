@@ -112,10 +112,14 @@
   /* =======================================================================
      NAVIGATION
      ===================================================================== */
+  // Màn con không có tab riêng → vẫn sáng tab cha (vd: chi tiết ca bệnh thuộc "Ca bệnh")
+  const NAV_PARENT = { caseDetail: 'cases' };
+
   function go(id) {
     state.screen = id;
     $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
-    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.go === id));
+    const navId = NAV_PARENT[id] || id;
+    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.go === navId));
     const active = $('.screen.active');
     if (active) active.scrollTop = 0;
     if (id === 'knowledge') ensureKnowledge();
@@ -140,6 +144,9 @@
     // Công tắc bật/tắt trong tab Hồ sơ
     const pft = e.target.closest('[data-pftoggle]');
     if (pft) { toggleProfile(pft.dataset.pftoggle, pft); return; }
+    // Thu/mở thẻ bước (Nhật ký điều trị · Đánh giá kết quả) — nhường chỗ cho chat
+    const fld = e.target.closest('[data-foldtoggle]');
+    if (fld) { const card = fld.closest('.case-fold'); if (card) card.classList.toggle('collapsed'); return; }
     // Hành động trong tab Hồ sơ (chỉnh sửa, cài đặt, đăng xuất…)
     const pf = e.target.closest('[data-pf]');
     if (pf) { handleProfileAction(pf.dataset.pf); return; }
@@ -1408,27 +1415,59 @@
     const comp = caseCompleteness(c);
     const kv = (k, v) => v ? `<div class="kv"><b>${k}</b><span>${esc(v)}</span></div>` : '';
     const riskTxt = c.riskLevel === 'high' ? 'Cao' : c.riskLevel === 'med' ? 'Trung bình' : c.riskLevel === 'low' ? 'Thấp' : '';
+
+    // Chỉ số đàn — đọc nhanh mức độ ca. Tỷ lệ mắc/chết tính trên tổng đàn,
+    // chỉ hiện khi ca có dữ liệu thật (không bịa số).
+    const herd = Number(c.herdSize) || 0;
+    const ratio = (n) => {
+      const v = Number(n);
+      if (!herd || !Number.isFinite(v)) return '';
+      const p = v / herd * 100;
+      return (p < 10 ? p.toFixed(1) : String(Math.round(p))) + '%';
+    };
+    const tile = (cls, val, label, sub) =>
+      `<div class="cp-stat ${cls}"><b>${(val === '' || val == null) ? '—' : esc(String(val))}</b><span>${esc(label)}${sub ? ` · ${esc(sub)}` : ''}</span></div>`;
+    const stats = (c.herdSize != null || c.affectedCount != null || c.deadCount != null)
+      ? `<div class="cp-stats">
+        ${tile('', c.herdSize, 'Tổng đàn', '')}
+        ${tile('warn', c.affectedCount, 'Mắc', ratio(c.affectedCount))}
+        ${tile('danger', c.deadCount, 'Chết', ratio(c.deadCount))}
+      </div>` : '';
+
     return `<div class="card case-profile">
       <div class="cp-head"><span class="cp-id">${esc(c.id)}</span><span class="case-status ${sm.cls}">${sm.label}</span></div>
       ${c.dxName ? `<div class="cp-dx">${SVG.science}<div><b>${esc(c.dxName)}</b><small>Chẩn đoán hỗ trợ${riskTxt ? ` · mức rủi ro ${riskTxt}` : ''}</small></div></div>` : ''}
-      <div style="margin-top:12px">
-        ${kv('Khách / trại', c.customer)}
+      ${stats}
+      <div class="cp-meta">
         ${kv('Loài / giai đoạn', (c.species || '') + (c.stage ? (' · ' + c.stage) : ''))}
-        ${kv('Tỉnh / vùng', c.province)}
-        ${kv('Tổng đàn', c.herdSize ? c.herdSize + ' con' : '')}
-        ${kv('Mắc / chết', (c.affectedCount || '?') + ' / ' + (c.deadCount || '?') + ' con')}
         ${kv('Khởi phát', c.started)}
-        ${kv('Triệu chứng', c.symptoms)}
         ${kv('Đã dùng thuốc', c.usedProducts)}
       </div>
+      ${c.symptoms ? `<div class="cp-symptoms"><b>Triệu chứng</b><p>${esc(c.symptoms)}</p></div>` : ''}
       <div class="cp-complete"><span>Hồ sơ ${comp}%</span><div class="bar"><i style="width:${comp}%"></i></div></div>
       ${salesActionsRow({ dxId: c.dxId, caseId: c.id, escalate: !!(c.dxId && disById[c.dxId] && (disById[c.dxId].muc_do === 'nguy_hiem' || disById[c.dxId].co_thuoc_dac_tri === false)) })}
+    </div>`;
+  }
+  // Tiêu đề mỗi bước xử lý ca: số bước + tên + mô tả ngắn → đọc như quy trình 1→2→3
+  function caseStepHead(n, title, sub) {
+    return `<div class="case-step"><span class="case-step-n">${n}</span><div class="case-step-h"><h4>${esc(title)}</h4>${sub ? `<p>${esc(sub)}</p>` : ''}</div></div>`;
+  }
+  // Thẻ bước thu/mở — tiêu đề luôn hiện tóm tắt, mở ra mới xem chi tiết.
+  // Thu mặc định để nhường diện tích cho khu chat (phần hỏi đáp dài).
+  function caseFoldCard(n, title, summary, bodyHtml) {
+    return `<div class="card case-fold collapsed" data-fold>
+      <button class="case-fold-head" type="button" data-foldtoggle>
+        <span class="case-step-n">${n}</span>
+        <div class="case-step-h"><h4>${esc(title)}</h4>${summary ? `<p>${esc(summary)}</p>` : ''}</div>
+        <span class="case-fold-chev"><svg class="ico" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
+      </button>
+      <div class="case-fold-body"><div class="case-fold-inner"><div class="case-fold-pad">${bodyHtml}</div></div></div>
     </div>`;
   }
   function caseQaHtml(c) {
     const quicks = ['Phác đồ xử lý chi tiết', 'Nên dùng sản phẩm nào?', 'Liều dùng & đường dùng', 'Cách phòng tái phát'];
     return `<div class="card">
-      <div class="case-section-title">${SVG.chat} Chẩn đoán &amp; hỏi đáp trên ca <span class="step">Bước 2</span></div>
+      ${caseStepHead(1, 'Chẩn đoán & hỏi đáp trên ca', 'Hỏi sâu phác đồ, sản phẩm và liều dùng cho ca này')}
       <div class="case-chat" id="caseChat">${(c.chat || []).map(caseBubbleHtml).join('')}</div>
       <div class="case-composer">
         <input id="caseInput" placeholder="Hỏi thêm về ca này…" />
@@ -1449,23 +1488,30 @@
             ${t.note ? `<div class="tl-meta">${esc(t.note)}</div>` : ''}
             ${t.response ? `<span class="tl-resp ${t.respClass || 'mid'}">${esc(t.response)}</span>` : ''}
           </div>`).join('')}</div>`
-      : `<p class="outcome-prompt">Chưa có lần điều trị nào. Ghi lại thuốc đã dùng và đáp ứng để theo dõi tiến triển.</p>`;
-    return `<div class="card"><div class="case-section-title">${SVG.package} Nhật ký điều trị <span class="step">Bước 3</span></div>${body}<div class="spacer-12"></div><button class="btn btn-secondary" id="cdAddTreatment">＋ Ghi nhận điều trị</button></div>`;
+      : `<p class="outcome-prompt">Chưa có lần điều trị nào được ghi nhận.</p>`;
+    const last = items.length ? items[items.length - 1] : null;
+    const summary = items.length
+      ? `${items.length} lần điều trị${last && last.date ? ' · gần nhất ' + last.date : ''}`
+      : 'Chưa có lần điều trị nào';
+    const inner = `${body}<div class="spacer-12"></div><button class="btn btn-secondary" id="cdAddTreatment">＋ Ghi nhận điều trị</button>`;
+    return caseFoldCard(2, 'Nhật ký điều trị', summary, inner);
   }
   function caseOutcomeHtml(c) {
     const o = c.outcome;
-    let body;
+    let body, summary;
     if (o) {
       const sm = statusMeta(o.status);
       const eff = (o.effProductNames || []);
+      summary = `${sm.label}${o.recoveredPct ? ` · ${esc(o.recoveredPct)}% hồi phục` : ''}`;
       body = `<div class="outcome-badge ${sm.cls}">${o.status === 'recovered' ? '✓' : o.status === 'lost' ? '✕' : '•'} ${sm.label}${o.recoveredPct ? ` · ${esc(o.recoveredPct)}% hồi phục` : ''}</div>
         ${eff.length ? `<div class="eff-tags">${eff.map(n => `<span class="pill green">${esc(n)}</span>`).join('')}</div>` : ''}
         ${o.note ? `<p class="tl-meta" style="margin-top:10px">${esc(o.note)}</p>` : ''}
         <div class="spacer-12"></div><button class="btn btn-ghost" id="cdRate">Cập nhật đánh giá</button>`;
     } else {
+      summary = 'Chưa đánh giá kết quả';
       body = `<p class="outcome-prompt">Khi ca kết thúc, chốt kết quả (khỏi / theo dõi / không qua khỏi) và sản phẩm có hiệu quả — dữ liệu sẽ gộp vào "Hiệu quả sản phẩm".</p><button class="btn btn-primary" id="cdRate">Đánh giá kết quả</button>`;
     }
-    return `<div class="card"><div class="case-section-title">${SVG.flag} Đánh giá kết quả <span class="step">Bước 4</span></div>${body}</div>`;
+    return caseFoldCard(3, 'Đánh giá kết quả', summary, body);
   }
   function renderCaseDetail(c) {
     c = c || getCase(state.currentCase); if (!c) return;
@@ -1999,7 +2045,7 @@
         </div>
       </div>
 
-      <p class="pf-version">AI SalesMate · phiên bản 1.0.0</p>
+      <p class="pf-version">AI SalesMate · phiên bản 1.0.1</p>
     `;
   }
 

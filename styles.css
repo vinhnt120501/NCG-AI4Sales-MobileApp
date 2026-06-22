@@ -1055,6 +1055,33 @@ html.touch .device { max-width: 100%; }
 .case-section-title .ico { font-size: 16px; }
 .case-section-title .step { margin-left: auto; font-size: 10px; font-weight: 800; color: var(--muted-2); letter-spacing: .04em; text-transform: uppercase; }
 
+/* Tiêu đề bước trong luồng xử lý ca: số tròn + tên + mô tả — đọc như quy trình 1→2→3 */
+.case-step { display: flex; align-items: flex-start; gap: 11px; margin: 0 0 14px; }
+.case-step-n {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--primary-soft); color: var(--primary-dark); border: 1px solid var(--primary-line);
+  font-size: 13px; font-weight: 800; display: grid; place-items: center;
+}
+.case-step-h h4 { margin: 3px 0 0; font-size: 14px; font-weight: 700; color: var(--primary-dark); letter-spacing: -0.01em; }
+.case-step-h p { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+/* Thẻ bước thu/mở — Nhật ký & Đánh giá thu gọn (tiêu đề hiện tóm tắt), nhường chỗ cho chat */
+.case-fold { padding: 0; overflow: hidden; }
+.case-fold-head {
+  width: 100%; border: 0; background: transparent; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 11px; padding: 15px 16px; text-align: left;
+  transition: background .14s ease;
+}
+.case-fold-head .case-step-h { flex: 1; min-width: 0; }
+.case-fold-head .case-step-h h4 { margin: 0; }
+.case-fold-chev { flex: 0 0 auto; color: var(--muted-2); display: grid; place-items: center; }
+.case-fold-chev .ico { font-size: 20px; transition: transform .24s ease; }
+.case-fold.collapsed .case-fold-chev .ico { transform: rotate(-90deg); }
+.case-fold-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .26s ease; }
+.case-fold.collapsed .case-fold-body { grid-template-rows: 0fr; }
+.case-fold-inner { overflow: hidden; min-height: 0; }
+.case-fold-pad { padding: 0 16px 16px; }
+
 /* --- Hồ sơ ca --- */
 .cp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .cp-id { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--muted-2); background: var(--line-soft); padding: 2px 7px; border-radius: 6px; }
@@ -1069,8 +1096,25 @@ html.touch .device { max-width: 100%; }
 .cp-complete .bar { flex: 1; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .cp-complete .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
 
+/* Dải chỉ số đàn — Tổng đàn / Mắc / Chết, đọc nhanh mức độ nặng của ca */
+.cp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.cp-stat { background: var(--line-soft); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.cp-stat b { display: block; font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; line-height: 1.1; }
+.cp-stat span { display: block; font-size: 10.5px; color: var(--muted); font-weight: 600; margin-top: 3px; }
+.cp-stat.warn { background: var(--warn-soft); }
+.cp-stat.warn b { color: var(--warn); }
+.cp-stat.danger { background: var(--danger-soft); }
+.cp-stat.danger b { color: var(--danger); }
+
+.cp-meta { margin-top: 14px; }
+
+/* Triệu chứng — nhãn trên, nội dung dưới: không nén trong cột nhãn hẹp */
+.cp-symptoms { margin-top: 12px; padding: 10px 12px; background: var(--line-soft); border-radius: 12px; }
+.cp-symptoms b { display: block; font-size: 11px; font-weight: 700; color: var(--primary-dark); margin-bottom: 4px; }
+.cp-symptoms p { margin: 0; font-size: 12.5px; color: #2c3a42; line-height: 1.5; }
+
 /* --- Chat hỏi đáp trên ca (cuộn trong card, không sticky) --- */
-.case-chat { display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; scrollbar-width: none; }
+.case-chat { display: flex; flex-direction: column; gap: 10px; max-height: clamp(360px, 56vh, 680px); overflow-y: auto; scrollbar-width: none; }
 .case-chat::-webkit-scrollbar { display: none; }
 .case-composer { display: flex; gap: 8px; margin-top: 11px; }
 .case-composer input {
@@ -1175,6 +1219,10 @@ html.touch .device { max-width: 100%; }
      active = pill xanh đậm hơn → cùng tông, phân cấp rõ & đẹp */
   .tab:hover { background: var(--primary-soft); color: var(--primary-dark); }
   .tab.active:hover { background: var(--primary-tint); color: var(--primary-dark); }
+
+  /* Header thẻ thu/mở: hover làm rõ vùng bấm + mũi chevron */
+  .case-fold-head:hover { background: var(--line-soft); }
+  .case-fold-head:hover .case-fold-chev { color: var(--primary); }
 
   /* Nút hành động bán hàng */
   .act-btn:hover { background: var(--primary-tint); border-color: var(--primary); }
