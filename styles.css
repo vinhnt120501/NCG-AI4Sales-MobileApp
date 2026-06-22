@@ -1176,11 +1176,10 @@ html.touch .device { max-width: 100%; }
   .tab:hover { background: var(--primary-soft); color: var(--primary-dark); }
   .tab.active:hover { background: var(--primary-tint); color: var(--primary-dark); }
 
-  /* Nút hành động bán hàng & ô công việc trên Home */
+  /* Nút hành động bán hàng */
   .act-btn:hover { background: var(--primary-tint); border-color: var(--primary); }
   .act-btn.primary:hover { background: var(--primary-dark); }
   .act-btn.danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-  .wf-tile:hover { border-color: var(--primary-line); background: var(--primary-soft); transform: translateY(-1px); }
 
   /* Nút icon tròn: chuông, nút quay lại */
   .icon-btn:hover, .back:hover { border-color: var(--primary-line); background: var(--primary-soft); color: var(--primary-dark); }
@@ -1233,32 +1232,11 @@ html.touch .device { max-width: 100%; }
   font: inherit; font-size: 12.5px; text-align: center; outline: none; background: #fff; color: var(--text);
 }
 .ord-qty:focus { border-color: var(--primary-line); box-shadow: 0 0 0 3px rgba(54, 103, 125, 0.10); }
-
-/* Hub "Công việc của tôi" trên Home */
-.wf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.wf-tile {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  border: 1px solid var(--line); background: #FBFCFD; border-radius: 14px; padding: 12px 13px;
-  cursor: pointer; font-family: inherit; text-align: left;
-  transition: border-color .15s ease, background .15s ease, transform .12s ease;
-}
-.wf-tile:active { transform: translateY(0); }
-.wf-num { font-size: 22px; font-weight: 800; color: var(--primary-dark); letter-spacing: -0.02em; line-height: 1; }
-.wf-lbl { font-size: 11px; color: var(--muted); font-weight: 600; }
-
-/* Danh sách công việc (trong sheet) */
-.wf-list { display: flex; flex-direction: column; gap: 11px; }
-.wf-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: #FBFCFD; }
-.wf-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
-.wf-head b { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--heading); }
-.wf-sub { font-size: 12.5px; font-weight: 700; color: var(--heading); margin-bottom: 6px; letter-spacing: -0.01em; }
-.wf-lines { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
-.wf-item .btn { margin-top: 10px; }
 .ar-body { min-width: 0; }
 
 /* =========================================================================
-   HỒ SƠ SALE — profile tab (thông tin cá nhân · hiệu suất · cài đặt).
-   Tự giải thích bằng icon + nhãn + mô tả ngắn — không cần hướng dẫn.
+   HỒ SƠ SALE — profile tab (tài khoản · bảo mật · quyền truy cập).
+   Tối giản, tự giải thích bằng icon + nhãn + mô tả ngắn.
    ========================================================================= */
 
 /* --- Thẻ hero: avatar + tên + vai trò (tông slate thương hiệu) --- */
@@ -1282,8 +1260,6 @@ html.touch .device { max-width: 100%; }
 .pf-hero-id .role { margin: 3px 0 9px; font-size: 12px; color: rgba(255, 255, 255, 0.82); }
 .pf-hero-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pf-hero-pills .pill { background: rgba(255, 255, 255, 0.16); color: #fff; }
-.pf-hero-pills .pill.live { color: #D7F2DE; }
-.pf-hero-pills .pill .dot { color: #76D69A; margin-right: 4px; }
 .pf-edit {
   position: absolute; top: 14px; right: 14px; z-index: 2;
   width: 34px; height: 34px; border-radius: 11px; cursor: pointer;
@@ -1292,15 +1268,6 @@ html.touch .device { max-width: 100%; }
 }
 .pf-edit .ico { font-size: 16px; }
 .pf-edit:active { background: rgba(255, 255, 255, 0.24); }
-
-/* --- Thẻ mục tiêu doanh số tháng (thanh tiến độ) --- */
-.pf-target-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.pf-target-head b { font-size: 17px; color: var(--primary-dark); letter-spacing: -0.02em; }
-.pf-target-head .goal { font-size: 11.5px; color: var(--muted); }
-.pf-bar { height: 9px; border-radius: 999px; background: var(--primary-soft); overflow: hidden; margin: 9px 0 7px; }
-.pf-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--green)); }
-.pf-target-sub { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
-.pf-target-sub b { color: var(--green); }
 
 /* --- Danh sách cài đặt (icon tròn + nhãn + mô tả + chevron) --- */
 .pf-list { display: flex; flex-direction: column; }
@@ -1354,13 +1321,3 @@ html.touch .device { max-width: 100%; }
   font-family: inherit; font-size: 13px; color: var(--text); background: #FBFCFD;
 }
 .pf-field input:focus { outline: 0; border-color: var(--primary-line); background: #fff; }
-.pf-dist {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 11px 12px; border: 1px solid var(--line); border-radius: 13px;
-  background: #FBFCFD; margin-bottom: 8px;
-}
-.pf-dist b { display: block; font-size: 13px; color: var(--heading); }
-.pf-dist small { color: var(--muted); font-size: 11.5px; }
-.pf-sheet-list { display: flex; flex-direction: column; gap: 9px; margin: 4px 0 2px; }
-.pf-sheet-item { display: flex; gap: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
-.pf-sheet-item .ico { flex: 0 0 auto; color: var(--primary); font-size: 17px; margin-top: 1px; }

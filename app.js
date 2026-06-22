@@ -71,13 +71,10 @@
   const REP = {
     name: 'Nguyễn Văn Sơn',
     short: 'Sơn',
-    role: 'Trình dược viên · Anova',
-    code: 'SR-0142',
-    region: 'Khu vực Đông Nam Bộ',
+    role: 'Trình dược viên · Anova',   // chức danh do quản lý/admin phân công
+    code: 'SR-0142',                   // mã NV từ hệ thống tài khoản
     phone: '0938 217 142',
     email: 'son.nguyen@anova.com.vn',
-    joined: '03/2023',
-    monthTarget: 220000000,        // mục tiêu doanh số/tháng (đ)
   };
   const repInitials = REP.name.trim().split(/\s+/).slice(-1)[0].charAt(0).toUpperCase();
 
@@ -108,8 +105,8 @@
     tickets: [],
     campaigns: [],
 
-    // Cài đặt cá nhân (tab Hồ sơ) — nạp lại từ localStorage khi boot
-    profile: { notifyDisease: true, remindCare: true, callRecord: false }
+    // Quyền truy cập thiết bị (tab Hồ sơ) — nạp lại từ localStorage khi boot
+    profile: { camera: true, micRecord: true }
   };
 
   /* =======================================================================
@@ -131,9 +128,6 @@
     // Hành động bán hàng (đơn nháp · tính số lượng · soạn tin · ticket · chiến dịch)
     const av = e.target.closest('[data-act]');
     if (av) { handleSalesAction(av.dataset); return; }
-    // Mở danh sách công việc (đơn / ticket / chiến dịch)
-    const vw = e.target.closest('[data-view]');
-    if (vw) { openWorkflowList(vw.dataset.view); return; }
     // Tạo ca bệnh mới (từ Home / Sổ ca bệnh)
     const nc = e.target.closest('[data-newcase]');
     if (nc) { openCaseForm(); return; }
@@ -228,7 +222,6 @@
     };
 
     renderCaseHome();
-    renderWorkflowHome();
   }
 
   /* Chat box ngay trên màn hình chính: gõ câu hỏi -> mở Trợ lý tri thức và hỏi luôn.
@@ -1712,7 +1705,6 @@
     saveLocal('ai4sales_orders', state.orders);
     saveLocal('ai4sales_tickets', state.tickets);
     saveLocal('ai4sales_campaigns', state.campaigns);
-    renderWorkflowHome();
   }
   function packSize(p) { const m = String(p.quy_cach || '').match(/(\d+(?:[.,]\d+)?)/); return m ? Number(m[1].replace(',', '.')) : 1; }
 
@@ -1926,103 +1918,30 @@
     };
   }
 
-  /* ---- Hub "Công việc của tôi": danh sách đơn / ticket / chiến dịch ---- */
-  function openWorkflowList(type) {
-    let title, body;
-    if (type === 'orders') {
-      title = 'Đơn nháp';
-      body = state.orders.length ? state.orders.map(o => `
-        <div class="wf-item">
-          <div class="wf-head"><b>${esc(o.id)}</b><span class="pill">${esc(o.created)}</span></div>
-          <div class="wf-sub">${esc(o.customer || 'Khách lẻ')}${o.dxName ? (' · ' + esc(o.dxName)) : ''}</div>
-          <div class="wf-lines">${o.lines.map(l => `<div>• ${esc(l.ten)} — ${esc(l.qty)}</div>`).join('')}</div>
-          <button class="btn btn-ghost wf-copy" data-copy="${esc(o.id)}">Copy đơn</button>
-        </div>`).join('') : '<p class="empty">Chưa có đơn nháp. Tạo từ một chẩn đoán hoặc ca bệnh.</p>';
-    } else if (type === 'tickets') {
-      title = 'Ticket chuyên gia';
-      body = state.tickets.length ? state.tickets.map(t => `
-        <div class="wf-item">
-          <div class="wf-head"><b>${esc(t.id)}</b><span class="pill amber">SLA ${esc(t.sla)}</span></div>
-          <div class="wf-sub">${esc(t.expert)} · ${esc(t.field)}</div>
-          <div class="wf-lines">${t.dxName ? ('<div>Ca: ' + esc(t.dxName) + '</div>') : ''}${t.customer ? ('<div>Khách: ' + esc(t.customer) + '</div>') : ''}${t.note ? ('<div>“' + esc(t.note) + '”</div>') : ''}</div>
-        </div>`).join('') : '<p class="empty">Chưa có ticket. Tạo khi ca cần chuyển chuyên gia.</p>';
-    } else {
-      title = 'Chiến dịch';
-      body = state.campaigns.length ? state.campaigns.map(c => `
-        <div class="wf-item">
-          <div class="wf-head"><b>${esc(c.id)}</b><span class="pill">${esc(c.created)}</span></div>
-          <div class="wf-sub">${esc(c.disease)} · ${esc(c.province)}</div>
-          <div class="wf-lines"><div>${c.targets.length} khách mục tiêu</div></div>
-          <button class="btn btn-ghost wf-copy" data-copymsg="${esc(c.id)}">Copy tin</button>
-        </div>`).join('') : '<p class="empty">Chưa có chiến dịch. Tạo từ một cảnh báo dịch ở tab Dịch bệnh.</p>';
-    }
-    openSheet(`<h3>${title}</h3><div class="wf-list">${body}</div>`);
-    $('#sheet').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => { const o = state.orders.find(x => x.id === b.dataset.copy); if (o) copyText(orderText(o)); });
-    $('#sheet').querySelectorAll('[data-copymsg]').forEach(b => b.onclick = () => { const c = state.campaigns.find(x => x.id === b.dataset.copymsg); if (c) copyText(c.message); });
-  }
-  function renderWorkflowHome() {
-    const set = (id, n) => { const el = $(id); if (el) el.textContent = n; };
-    const activeCases = (state.cases || []).filter(c => c.status === 'active' || c.status === 'watch').length;
-    set('#wfCases', activeCases);
-    set('#wfOrders', state.orders.length);
-    set('#wfTickets', state.tickets.length);
-    set('#wfCampaigns', state.campaigns.length);
-  }
   function loadWorkflow() {
+    // Đơn nháp / ticket / chiến dịch do nút hành động (chẩn đoán · push · ca bệnh) tạo ra,
+    // lưu cục bộ để nút "Lưu / Gửi" hoạt động và còn lại sau khi tải lại.
     state.orders = loadLocal('ai4sales_orders', null) || [];
     state.tickets = loadLocal('ai4sales_tickets', null) || [];
     state.campaigns = loadLocal('ai4sales_campaigns', null) || [];
-    if (!state.orders.length && !state.tickets.length) {
-      // gieo 1 đơn + 1 ticket mẫu để hub không trống (demo)
-      const d05 = disById['D05'], d01 = disById['D01'];
-      if (d05) {
-        const prods = (d05.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean).slice(0, 3);
-        state.orders = [{ id: 'DON-2471', customer: 'Trại heo Long Thành', dxName: d05.ten_benh, lines: prods.map(p => ({ ma: p.ma_sp, ten: p.ten, role: ROLE[p.loai] || 'Sản phẩm', qty: '5 đv', gia: p.gia_vnd })), note: 'Giao trong tuần', status: 'draft', created: daysAgoStr(2) }];
-      }
-      if (d01) state.tickets = [{ id: 'CG-3082', expert: 'BSTY. Lê Minh Heo', field: 'Heo', sla: '2 giờ', dxName: d01.ten_benh, customer: 'Trại heo Hòa Phú', note: 'Nghi ASF, chết nhanh — xác minh & hướng xử lý đàn.', status: 'open', created: daysAgoStr(4) }];
-      saveLocal('ai4sales_orders', state.orders); saveLocal('ai4sales_tickets', state.tickets);
-    }
   }
 
   /* =======================================================================
-     HỒ SƠ SALE — thông tin cá nhân · hiệu suất bán hàng · cài đặt.
-     Mỗi dòng tự giải thích (icon + nhãn + mô tả) — không cần hướng dẫn.
+     HỒ SƠ SALE — tài khoản · bảo mật · quyền truy cập. Tối giản, mỗi dòng
+     đều tự phục vụ được bằng dữ liệu của app (không cần API KPI/CRM ngoài).
      ===================================================================== */
 
-  /* SVG riêng cho tab Hồ sơ */
+  /* SVG riêng cho tab Hồ sơ — chỉ giữ icon thực sự dùng tới */
   const PF_SVG = {
     edit: `<svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
-    territory: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
-    phone: `<svg class="ico" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`,
-    bell: `<svg class="ico" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`,
-    calendar: `<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+    user: `<svg class="ico" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`,
+    lock: `<svg class="ico" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
     globe: `<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
-    gear: `<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
-    sync: `<svg class="ico" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
-    help: `<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
-    shield: `<svg class="ico" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
-    switch: `<svg class="ico" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>`,
+    camera: `<svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
+    mic: `<svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`,
     logout: `<svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>`,
     chev: `<svg class="ico" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
   };
-
-  /* Hiệu suất bán hàng tính trực tiếp từ dữ liệu NPP (data.js) */
-  function repStats() {
-    const ds = DB.distributors || [];
-    const months = {};
-    let total = 0;
-    ds.forEach(d => (d.lich_su_don || []).forEach(o => {
-      const v = o.gia_tri_vnd || 0;
-      total += v;
-      months[o.thang] = (months[o.thang] || 0) + v;
-    }));
-    const congNo = ds.reduce((s, d) => s + (d.cong_no_vnd || 0), 0);
-    const monthKeys = Object.keys(months).sort();
-    const lastKey = monthKeys[monthKeys.length - 1];
-    const lastMonthSum = lastKey ? months[lastKey] : 0;
-    const lastLabel = lastKey ? `T${Number(lastKey.split('-')[1])}/${lastKey.split('-')[0]}` : '—';
-    return { total, congNo, lastMonthSum, lastLabel, count: ds.length };
-  }
 
   function pfRow(act, icoCls, ico, title, sub, extra) {
     extra = extra || {};
@@ -2040,12 +1959,8 @@
 
   function renderProfile() {
     const body = $('#profileBody'); if (!body) return;
-    const s = repStats();
-    const pct = Math.min(100, Math.round((s.lastMonthSum / REP.monthTarget) * 100));
-    const conNo = REP.monthTarget - s.lastMonthSum;
-
     body.innerHTML = `
-      <!-- Hero: ai đang đăng nhập -->
+      <!-- Hero: ai đang đăng nhập (lấy từ tài khoản đăng nhập) -->
       <div class="card pf-hero">
         <div class="pf-avatar">${repInitials}</div>
         <div class="pf-hero-id">
@@ -2053,63 +1968,38 @@
           <p class="role">${esc(REP.role)}</p>
           <div class="pf-hero-pills">
             <span class="pill">Mã NV: ${esc(REP.code)}</span>
-            <span class="pill live"><span class="dot">●</span>Đang hoạt động</span>
           </div>
         </div>
-        <button class="pf-edit" data-pf="edit" aria-label="Chỉnh sửa hồ sơ">${PF_SVG.edit}</button>
+        <button class="pf-edit" data-pf="account" aria-label="Quản lý tài khoản">${PF_SVG.edit}</button>
       </div>
 
-      <!-- Mục tiêu doanh số tháng (thanh tiến độ) -->
-      <div class="card">
-        <div class="card-title"><h3>Mục tiêu tháng ${s.lastLabel}</h3><span class="pill ${pct >= 100 ? 'green' : ''}">${pct}%</span></div>
-        <div class="pf-target-head">
-          <b>${fmtVndShort(s.lastMonthSum)}</b>
-          <span class="goal">/ mục tiêu ${fmtVndShort(REP.monthTarget)}</span>
-        </div>
-        <div class="pf-bar"><i style="width:${pct}%"></i></div>
-        <p class="pf-target-sub">${pct >= 100
-          ? `Đã <b>vượt mục tiêu</b> tháng này — tuyệt vời!`
-          : `Còn <b>${fmtVndShort(conNo)}</b> nữa là đạt mục tiêu. Mở Push-sale để tìm cơ hội up-sale.`}</p>
-      </div>
-
-      <!-- Hiệu suất tổng quan -->
-      <div class="card">
-        <div class="card-title"><h3>Hiệu suất bán hàng</h3></div>
-        <div class="stat-grid">
-          <div class="stat"><strong>${fmtVndShort(s.total)}</strong><span>Doanh số luỹ kế</span></div>
-          <div class="stat"><strong>${s.count}</strong><span>Đại lý phụ trách</span></div>
-          <div class="stat warnval"><strong>${fmtVndShort(s.congNo)}</strong><span>Công nợ cần thu</span></div>
-          <div class="stat"><strong>${(state.cases || []).length}</strong><span>Ca đang theo dõi</span></div>
-        </div>
-      </div>
-
-      <!-- Hồ sơ & cài đặt -->
-      <div class="card">
-        <div class="card-title"><h3>Hồ sơ &amp; cài đặt</h3></div>
-        <div class="pf-list">
-          ${pfRow('edit', '', PF_SVG.edit, 'Chỉnh sửa hồ sơ', 'Tên, chức danh, số điện thoại, email')}
-          ${pfRow('region', 'green', PF_SVG.territory, 'Khu vực phụ trách', `${REP.region} · ${s.count} đại lý`)}
-          ${pfRow('notify', 'amber', PF_SVG.bell, 'Cảnh báo dịch bệnh', 'Nhận thông báo khi vùng phụ trách có ổ dịch', { toggle: 'notifyDisease' })}
-          ${pfRow('remind', 'purple', PF_SVG.calendar, 'Nhắc chăm sóc khách', 'Nhắc gọi lại khách đến kỳ nhập hàng', { toggle: 'remindCare' })}
-          ${pfRow('call', '', PF_SVG.phone, 'Cài đặt cuộc gọi', 'Hiển thị số, ghi âm tư vấn')}
-          ${pfRow('lang', '', PF_SVG.globe, 'Ngôn ngữ', 'Ngôn ngữ hiển thị', { value: 'Tiếng Việt' })}
-          ${pfRow('app', '', PF_SVG.gear, 'Cài đặt ứng dụng', 'Bộ nhớ đệm, dữ liệu, hiển thị')}
-        </div>
-      </div>
-
-      <!-- Tài khoản -->
+      <!-- Tài khoản & bảo mật -->
       <div class="card">
         <div class="card-title"><h3>Tài khoản</h3></div>
         <div class="pf-list">
-          ${pfRow('sync', 'green', PF_SVG.sync, 'Đồng bộ dữ liệu', 'Lần cuối hôm nay · 10:35')}
-          ${pfRow('help', '', PF_SVG.help, 'Trợ giúp & phản hồi', 'Hướng dẫn dùng app, gửi góp ý')}
-          ${pfRow('terms', '', PF_SVG.shield, 'Điều khoản & quyền riêng tư', 'Chính sách dữ liệu và sử dụng')}
-          ${pfRow('switch', '', PF_SVG.switch, 'Đổi tài khoản', 'Đăng nhập tài khoản Sale khác')}
+          ${pfRow('account', '', PF_SVG.user, 'Quản lý tài khoản', 'Họ tên, số điện thoại, email')}
+          ${pfRow('password', '', PF_SVG.lock, 'Đổi mật khẩu', 'Cập nhật mật khẩu đăng nhập')}
+          ${pfRow('lang', '', PF_SVG.globe, 'Ngôn ngữ', 'Ngôn ngữ hiển thị', { value: 'Tiếng Việt' })}
+        </div>
+      </div>
+
+      <!-- Quyền truy cập thiết bị -->
+      <div class="card">
+        <div class="card-title"><h3>Quyền truy cập</h3></div>
+        <div class="pf-list">
+          ${pfRow('cam', 'green', PF_SVG.camera, 'Truy cập máy ảnh', 'Chụp ảnh triệu chứng khi tạo ca bệnh', { toggle: 'camera' })}
+          ${pfRow('rec', 'amber', PF_SVG.mic, 'Ghi âm', 'Hỏi trợ lý bằng giọng nói', { toggle: 'micRecord' })}
+        </div>
+      </div>
+
+      <!-- Đăng xuất -->
+      <div class="card">
+        <div class="pf-list">
           ${pfRow('logout', 'danger', PF_SVG.logout, 'Đăng xuất', '', { danger: true })}
         </div>
       </div>
 
-      <p class="pf-version">AI SalesMate · phiên bản 1.0.0 · ${esc(REP.code)}</p>
+      <p class="pf-version">AI SalesMate · phiên bản 1.0.0</p>
     `;
   }
 
@@ -2119,80 +2009,37 @@
     saveLocal('ai4sales_profile', state.profile);
     const sw = el.querySelector('.pf-switch');
     if (sw) sw.classList.toggle('on', state.profile[key]);
-    const labels = { notifyDisease: 'Cảnh báo dịch bệnh', remindCare: 'Nhắc chăm sóc khách', callRecord: 'Ghi âm tư vấn' };
+    const labels = { camera: 'Truy cập máy ảnh', micRecord: 'Ghi âm' };
     toast(`${labels[key] || 'Cài đặt'}: ${state.profile[key] ? 'Đã bật' : 'Đã tắt'}`);
   }
 
-  /* Xử lý các dòng trong tab Hồ sơ */
+  /* Xử lý các dòng trong tab Hồ sơ — chỉ tác vụ tự phục vụ bằng dữ liệu của app */
   function handleProfileAction(act) {
     switch (act) {
-      case 'edit':
-        openSheet(`<h3>Chỉnh sửa hồ sơ</h3><p class="sub">Thông tin này hiển thị trong ứng dụng.</p>
+      case 'account':
+        // Họ tên / SĐT / email lấy từ tài khoản đăng nhập. Chức danh & khu vực do
+        // quản lý/admin phân công nên không cho Sale tự sửa tại đây.
+        openSheet(`<h3>Quản lý tài khoản</h3><p class="sub">Thông tin liên hệ của bạn. Chức danh và khu vực do quản lý phân công.</p>
           <label class="pf-field"><span>Họ và tên</span><input value="${esc(REP.name)}" /></label>
-          <label class="pf-field"><span>Chức danh</span><input value="Trình dược viên" /></label>
           <label class="pf-field"><span>Số điện thoại</span><input value="${esc(REP.phone)}" /></label>
           <label class="pf-field"><span>Email</span><input value="${esc(REP.email)}" /></label>
-          <button class="btn btn-primary" data-pf="save-profile" style="margin-top:6px">Lưu thay đổi</button>`);
+          <button class="btn btn-primary" data-pf="save-account" style="margin-top:6px">Lưu thay đổi</button>`);
         break;
-      case 'save-profile':
-        closeSheet(); toast('Đã lưu hồ sơ');
+      case 'save-account':
+        closeSheet(); toast('Đã lưu tài khoản');
         break;
-      case 'region': {
-        const rows = (DB.distributors || []).map(d => `<div class="pf-dist">
-          <div><b>${esc(d.ten)}</b><small>${esc(d.khu_vuc)} · ${esc(d.loai_hinh)}</small></div>
-          <span class="pill ${(d.cong_no_vnd || 0) > 50e6 ? 'amber' : 'green'}">Nợ ${fmtVndShort(d.cong_no_vnd)}</span>
-        </div>`).join('');
-        openSheet(`<h3>Khu vực phụ trách</h3><p class="sub">${esc(REP.region)} · ${(DB.distributors || []).length} đại lý</p>${rows}`);
+      case 'password':
+        openSheet(`<h3>Đổi mật khẩu</h3><p class="sub">Mật khẩu mới tối thiểu 8 ký tự.</p>
+          <label class="pf-field"><span>Mật khẩu hiện tại</span><input type="password" placeholder="••••••••" /></label>
+          <label class="pf-field"><span>Mật khẩu mới</span><input type="password" placeholder="••••••••" /></label>
+          <label class="pf-field"><span>Nhập lại mật khẩu mới</span><input type="password" placeholder="••••••••" /></label>
+          <button class="btn btn-primary" data-pf="save-password" style="margin-top:6px">Cập nhật mật khẩu</button>`);
         break;
-      }
-      case 'call':
-        openSheet(`<h3>Cài đặt cuộc gọi</h3><p class="sub">Tuỳ chọn khi gọi khách hàng từ trong app.</p>
-          <div class="pf-list">
-            ${pfRow('', 'green', PF_SVG.phone, 'Hiển thị số khi gọi', 'Hiện số tổng đài Anova cho khách', { value: 'Bật' })}
-            ${pfRow('rec', '', PF_SVG.bell, 'Ghi âm tư vấn', 'Lưu nội dung trao đổi để đối soát', { toggle: 'callRecord' })}
-          </div>`);
+      case 'save-password':
+        closeSheet(); toast('Đã đổi mật khẩu');
         break;
       case 'lang':
         toast('Hiện hỗ trợ Tiếng Việt');
-        break;
-      case 'app':
-        openSheet(`<h3>Cài đặt ứng dụng</h3>
-          <div class="pf-sheet-list">
-            <div class="pf-sheet-item">${PF_SVG.sync}<span><b>Dữ liệu offline.</b> App chạy hoàn toàn ngoại tuyến từ dữ liệu nhúng — không cần mạng.</span></div>
-            <div class="pf-sheet-item">${PF_SVG.shield}<span><b>Quyền riêng tư.</b> Ca bệnh & cài đặt chỉ lưu trên máy của bạn (localStorage).</span></div>
-            <div class="pf-sheet-item">${PF_SVG.gear}<span><b>Phiên bản 1.0.0.</b> Bộ dữ liệu: 14 bệnh · 19 sản phẩm · 4 đại lý.</span></div>
-          </div>
-          <button class="btn btn-ghost" data-pf="clear-cache" style="margin-top:14px">Xoá dữ liệu cục bộ</button>`);
-        break;
-      case 'clear-cache':
-        closeSheet(); toast('Đã xoá bộ nhớ đệm cục bộ');
-        break;
-      case 'sync':
-        toast('Đã đồng bộ dữ liệu mới nhất');
-        break;
-      case 'help':
-        openSheet(`<h3>Trợ giúp &amp; phản hồi</h3><p class="sub">Cách dùng nhanh AI SalesMate.</p>
-          <div class="pf-sheet-list">
-            <div class="pf-sheet-item">${SVG.sparkles}<span><b>Trợ lý AI</b> — gõ thẳng triệu chứng hoặc tên sản phẩm ở tab Tổng quan để hỏi nhanh.</span></div>
-            <div class="pf-sheet-item">${SVG.trendingUp}<span><b>Push-sale</b> — chọn đại lý để xem lịch sử mua và gợi ý cơ hội bán thêm.</span></div>
-            <div class="pf-sheet-item">${SVG.mapPin}<span><b>Dịch bệnh</b> — xem bản đồ vùng phụ trách và nhập tín hiệu thị trường.</span></div>
-            <div class="pf-sheet-item">${PF_SVG.help}<span>Cần hỗ trợ thêm? Gọi <b>tổng đài Anova 1900 1234</b>.</span></div>
-          </div>
-          <button class="btn btn-primary" data-pf="send-feedback" style="margin-top:14px">Gửi góp ý</button>`);
-        break;
-      case 'send-feedback':
-        closeSheet(); toast('Cảm ơn bạn! Đã gửi góp ý');
-        break;
-      case 'terms':
-        openSheet(`<h3>Điều khoản &amp; quyền riêng tư</h3>
-          <div class="pf-sheet-list">
-            <div class="pf-sheet-item">${PF_SVG.shield}<span>Ứng dụng chỉ <b>hỗ trợ tư vấn</b> — không tạo đơn, không chốt đơn, không thay thế bác sĩ thú y.</span></div>
-            <div class="pf-sheet-item">${PF_SVG.shield}<span>Dữ liệu khách hàng &amp; ca bệnh lưu <b>cục bộ trên thiết bị</b>, không gửi ra ngoài.</span></div>
-            <div class="pf-sheet-item">${SVG.science}<span>Mọi gợi ý sinh từ thư viện tri thức nội bộ — vui lòng đối chiếu trước khi áp dụng thực tế.</span></div>
-          </div>`);
-        break;
-      case 'switch':
-        toast('Tính năng đổi tài khoản đang phát triển');
         break;
       case 'logout':
         openSheet(`<h3>Đăng xuất?</h3><p class="sub">Bạn sẽ cần đăng nhập lại để tiếp tục dùng AI SalesMate.</p>
@@ -2211,7 +2058,7 @@
   /* =======================================================================
      BOOT
      ===================================================================== */
-  state.profile = loadLocal('ai4sales_profile', state.profile);
+  state.profile = Object.assign({ camera: true, micRecord: true }, loadLocal('ai4sales_profile', {}));
   loadCases();        // nạp ca bệnh đã lưu (hoặc gieo dữ liệu mẫu lần đầu)
   loadWorkflow();     // nạp đơn nháp / ticket / chiến dịch
   renderHome();
