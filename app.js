@@ -21,7 +21,12 @@
     chat: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
     trendingUp: `<svg class="ico" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
     mapPin: `<svg class="ico" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
-    sparkles: `<svg class="ico" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path></svg>`
+    sparkles: `<svg class="ico" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path></svg>`,
+    calc: `<svg class="ico" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg>`,
+    mail: `<svg class="ico" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-10 6L2 7"></path></svg>`,
+    receipt: `<svg class="ico" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path><line x1="8" y1="7" x2="16" y2="7"></line><line x1="8" y1="11" x2="16" y2="11"></line><line x1="8" y1="15" x2="13" y2="15"></line></svg>`,
+    megaphone: `<svg class="ico" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>`,
+    user: `<svg class="ico" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
   };
 
   /* ----------------------------------------------------------- Tiny helpers */
@@ -78,7 +83,16 @@
     diagStep: 0,
     diagQuery: null,
     diagScores: null,
-    diagFollowUpAsked: null
+    diagFollowUpAsked: null,
+
+    // Sổ ca bệnh
+    cases: [],
+    currentCase: null,
+
+    // Công cụ bán hàng (đơn nháp · ticket chuyên gia · chiến dịch)
+    orders: [],
+    tickets: [],
+    campaigns: []
   };
 
   /* =======================================================================
@@ -93,8 +107,21 @@
     if (id === 'knowledge') ensureKnowledge();
     if (id === 'push') renderPush();
     if (id === 'market') renderMarket();
+    if (id === 'cases') renderCases();
   }
   document.addEventListener('click', (e) => {
+    // Hành động bán hàng (đơn nháp · tính số lượng · soạn tin · ticket · chiến dịch)
+    const av = e.target.closest('[data-act]');
+    if (av) { handleSalesAction(av.dataset); return; }
+    // Mở danh sách công việc (đơn / ticket / chiến dịch)
+    const vw = e.target.closest('[data-view]');
+    if (vw) { openWorkflowList(vw.dataset.view); return; }
+    // Tạo ca bệnh mới (từ Home / Sổ ca bệnh)
+    const nc = e.target.closest('[data-newcase]');
+    if (nc) { openCaseForm(); return; }
+    // Mở chi tiết một ca bệnh
+    const ce = e.target.closest('[data-case]');
+    if (ce) { openCaseDetail(ce.dataset.case); return; }
     // Chạm vào một sản phẩm bất kỳ -> mở chi tiết đầy đủ trong bottom sheet
     const pe = e.target.closest('[data-prod]');
     if (pe) { const p = prodById[pe.dataset.prod]; if (p) { openSheet(answerProduct(p)); return; } }
@@ -161,33 +188,44 @@
         <span class="hero-pill">🦠 ${esc(s.topDisease[0].split(' (')[0])}</span>
       </div>`;
 
-    // Stats
-    $('#homeStats').innerHTML = [
-      `<div class="stat"><strong>${s.provinces.size}</strong><span>tỉnh/thành có cảnh báo</span></div>`,
-      `<div class="stat warnval"><strong>${s.severe.length}</strong><span>cảnh báo mức cao</span></div>`,
-      `<div class="stat"><strong>${esc(s.topDisease[0].split(' (')[0])}</strong><span>bệnh ghi nhận nhiều nhất</span></div>`,
-      `<div class="stat warnval"><strong>${esc(s.hotProv[0])}</strong><span>khu vực nguy cơ cao</span></div>`,
-    ].join('');
-
     // Quick questions
     const quicks = [
-      { t: 'Heo sốt cao, bỏ ăn, chết nhanh là bệnh gì?', go: 'knowledge', mode: 'diagnose', run: 'Heo thịt sốt cao 41 độ, bỏ ăn, da tai bụng đỏ tím, chết nhanh tỷ lệ cao' },
+      { t: 'Heo sốt cao, bỏ ăn, chết nhanh?', go: 'knowledge', mode: 'diagnose', run: 'Heo thịt sốt cao 41 độ, bỏ ăn, da tai bụng đỏ tím, chết nhanh tỷ lệ cao' },
+      { t: 'Phác đồ Dịch tả lợn (ASF)', go: 'knowledge', mode: 'protocol', run: 'Cách phòng dịch và điều trị bệnh Dịch tả lợn châu Phi (ASF)' },
       { t: 'Tra cứu Anova Enroflox 10%', go: 'knowledge', mode: 'product', run: 'Anova Enroflox 10%' },
-      { t: 'Đang có chương trình khuyến mãi gì?', go: 'knowledge', mode: 'promo', run: 'Có khuyến mãi gì đang áp dụng?' },
-      { t: 'Phân tích Đại lý Minh Phát', go: 'push', cust: 'NPP001' },
-      { t: 'Mở bản đồ dịch bệnh heat-map', go: 'market' },
+      { t: 'Đang có khuyến mãi gì?', go: 'knowledge', mode: 'promo', run: 'Có khuyến mãi gì đang áp dụng?' },
     ];
     $('#homeQuick').innerHTML = quicks.map((q, i) => `<button class="quick" data-q="${i}">${esc(q.t)}</button>`).join('');
     $('#homeQuick').onclick = (e) => {
       const b = e.target.closest('[data-q]'); if (!b) return;
       const q = quicks[+b.dataset.q];
       if (q.go === 'knowledge') { setMode(q.mode, true); go('knowledge'); if (q.run) ask(q.run); }
-      else if (q.go === 'push') { go('push'); if (q.cust) analyzeCustomer(q.cust); }
       else go(q.go);
     };
+
+    renderCaseHome();
+    renderWorkflowHome();
   }
 
-  $('#homeSearch').addEventListener('click', () => { go('knowledge'); setTimeout(() => $('#kbInput').focus(), 250); });
+  /* Chat box ngay trên màn hình chính: gõ câu hỏi -> mở Trợ lý tri thức và hỏi luôn.
+     Không cần hướng dẫn — đặt câu hỏi là dùng được ngay (easy onboarding). */
+  function homeAsk(text, mode) {
+    const v = (text || '').trim();
+    setMode(mode || 'diagnose', true);
+    go('knowledge');
+    if (v) ask(v);
+    else setTimeout(() => { const i = $('#kbInput'); if (i) i.focus(); }, 250);
+  }
+  const homeAskForm = $('#homeAskForm');
+  if (homeAskForm) {
+    homeAskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inp = $('#homeAsk');
+      const v = inp.value.trim();
+      inp.value = '';
+      homeAsk(v);
+    });
+  }
   $('#bellBtn').addEventListener('click', () => {
     const severe = state.alerts.filter(a => SEV[a.muc_do] === 'high')
       .sort((a, b) => new Date(b.ngay) - new Date(a.ngay));
@@ -494,6 +532,7 @@
       ${prods.length ? `<div class="panel"><h5>${SVG.package} Thuốc điều trị & Liều lượng sử dụng</h5>${prodHtml}</div>` : ''}
 
       ${needExpert ? `<div class="flag-expert">${SVG.flag} <span><b>Chuyển chuyên gia.</b> ${esc(expertMsg)}</span></div>` : ''}
+      ${salesActionsRow({ dxId: d.id, escalate: needExpert })}
       <div class="warning">AI chỉ hỗ trợ tư vấn ban đầu. Hướng điều trị và liều dùng cần đối chiếu nhãn sản phẩm, tài liệu kỹ thuật và ý kiến chuyên môn từ Anova.</div>
       ${srcRow(['Dịch tễ học Anova', 'An toàn sinh học & vaccine', 'Catalogue sản phẩm'])}`;
   }
@@ -551,6 +590,7 @@
   function answerProduct(p) {
     const kv = (k, v) => v ? `<div class="kv"><b>${k}</b><span>${esc(v)}</span></div>` : '';
     const warn = p.chong_chi_dinh || p.thoi_gian_ngung || p.tuong_tac_luu_y;
+    const hasSci = p.co_che_tac_dong || p.duoc_dong_hoc || p.pho_tac_dong || p.bang_chung || p.tieu_chuan;
     return `
       <p class="ans-lead"><b>${esc(p.ten)}</b> — ${esc(LOAI_LABEL[p.loai] || p.loai)} · ${esc(p.hang || '')}</p>
       <div class="panel"><h5>${SVG.package} Thông tin sản phẩm</h5>
@@ -561,12 +601,20 @@
         ${kv('Đối tượng', p.doi_tuong)}
         <div class="kv"><b>Giá tham khảo</b><span><b style="color:var(--primary-dark)">${fmtVnd(p.gia_vnd)}</b> · ${esc(p.quy_cach || '')}</span></div>
       </div>
+      ${hasSci ? `<div class="panel"><h5>${SVG.science} Cơ chế &amp; bằng chứng</h5>
+        ${kv('Cơ chế tác động', p.co_che_tac_dong)}
+        ${kv('Phổ tác động', p.pho_tac_dong)}
+        ${kv('Dược động học (PK/PD)', p.duoc_dong_hoc)}
+        ${kv('Bằng chứng hiệu quả', p.bang_chung)}
+        ${kv('Tiêu chuẩn', p.tieu_chuan)}
+      </div>` : ''}
       ${warn ? `<div class="panel danger"><h5>${SVG.shield} Lưu ý an toàn</h5>
         ${kv('Chống chỉ định', p.chong_chi_dinh)}
         ${kv('Thời gian ngừng thuốc', p.thoi_gian_ngung)}
         ${kv('Tương tác – lưu ý', p.tuong_tac_luu_y)}
         ${kv('Bảo quản', p.bao_quan)}
       </div>` : ''}
+      <div class="act-row"><button class="act-btn" data-act="qty" data-pid="${esc(p.ma_sp)}">${SVG.calc} Tính số lượng cần đặt</button></div>
       <div class="warning">Giá mang tính tham khảo; luôn đối chiếu bảng giá và nhãn sản phẩm hiện hành.</div>
       ${srcRow(['Catalogue sản phẩm', 'Dược lý thú y (cơ chế & PK/PD)', 'Tiêu chuẩn chất lượng & chuỗi lạnh'])}`;
   }
@@ -647,11 +695,13 @@
   }
 
   function renderCustChips() {
-    $('#custPick').innerHTML = DB.distributors.map(d => `
+    const cp = $('#custPick');
+    if (!cp) return;
+    cp.innerHTML = DB.distributors.map(d => `
       <button class="cust-chip ${d.id === state.pushCustomer ? 'active' : ''}" data-cust="${d.id}">
         <b>${esc(d.ten)}</b><small>${esc(d.khu_vuc)} · ${esc(d.loai_hinh)}</small>
       </button>`).join('');
-    $('#custPick').onclick = (e) => {
+    cp.onclick = (e) => {
       const b = e.target.closest('[data-cust]'); if (!b) return;
       analyzeCustomer(b.dataset.cust);
     };
@@ -739,6 +789,7 @@
         ${tierBlock('suggest', 'Cross-sale', 'Bán kèm', 'Nhóm bổ trợ / sát trùng khách chưa mua nhưng hợp với đàn & bối cảnh dịch.', tiers.suggest, 'Gợi ý theo tình huống phòng dịch, phục hồi sau stress.')}
         ${tierBlock('grow', 'Up-sale', 'Mở SKU mới', 'Vaccine phòng bệnh khách chưa nhập dù quy mô lớn — tăng giá trị đơn.', tiers.grow, 'Tư vấn ROI phòng bệnh so với chi phí một ổ dịch.')}
       </div>
+      ${salesActionsRow({ custId: d.id })}
       <div class="muted-note">Chạm vào tên sản phẩm để xem chi tiết. Hỏi tiếp ở ô bên dưới để mình gợi ý lời thoại.</div>`;
   }
 
@@ -968,11 +1019,14 @@
       const sev = SEV[a.muc_do];
       return `<div class="alert-row" data-id="${esc(a.id)}">
         <span class="alert-dot ${sev}"></span>
-        <div><h4>${esc(a.tinh)} · ${esc(a.ten_benh.split(' (')[0])}</h4><p>${esc(a.note)}</p></div>
+        <div class="ar-body"><h4>${esc(a.tinh)} · ${esc(a.ten_benh.split(' (')[0])}</h4><p>${esc(a.note)}</p>
+          <button class="act-btn sm" data-act="campaign" data-prov="${esc(a.tinh)}" data-benh="${esc(a.ten_benh)}">${SVG.megaphone} Tạo chiến dịch</button>
+        </div>
         <span class="risk-badge ${sev}">${SEV_LABEL[sev]}</span>
       </div>`;
     }).join('') || '<div class="empty">Không có cảnh báo nào khớp bộ lọc.</div>';
     $('#alertList').onclick = (e) => {
+      if (e.target.closest('[data-act]')) return;   // nút chiến dịch xử lý riêng
       const r = e.target.closest('[data-id]'); if (!r) return;
       $('#market').scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => selectAlert(r.dataset.id), 280);
@@ -1098,6 +1152,10 @@
       if (inputId === 'kbInput') {
         const mode = state.kbMode;
         input.placeholder = KB_MODES[mode]?.placeholder || 'Nhập câu hỏi...';
+      } else if (inputId === 'homeAsk') {
+        input.placeholder = 'Hỏi nhanh: Heo sốt cao, bỏ ăn là bệnh gì?';
+      } else if (inputId === 'caseInput') {
+        input.placeholder = 'Hỏi thêm về ca này…';
       } else {
         input.placeholder = 'Hỏi tiếp về khách này…';
       }
@@ -1111,6 +1169,12 @@
         sendKb();
       } else if (inputId === 'pushInput') {
         sendPush();
+      } else if (inputId === 'homeAsk') {
+        input.value = '';
+        homeAsk(text);
+      } else if (inputId === 'caseInput') {
+        input.value = '';
+        caseAsk(text);
       }
     };
 
@@ -1127,19 +1191,792 @@
   }
 
   /* =======================================================================
+     SỔ CA BỆNH — tạo ca · chẩn đoán & hỏi đáp · nhật ký điều trị ·
+     đánh giá kết quả · theo dõi hiệu quả sản phẩm. Lưu vào localStorage.
+     ===================================================================== */
+
+  /* ---- localStorage & helpers ---- */
+  function saveLocal(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function loadLocal(k, def) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : def; } catch (e) { return def; } }
+  function persistCases() { saveLocal('ai4sales_cases', state.cases); renderCaseHome(); }
+  function getCase(id) { return (state.cases || []).find(c => c.id === id) || null; }
+  function uid(p) { return p + Math.floor(1000 + Math.random() * 9000) + (Date.now() % 1000); }
+  function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trim() + '…' : s; }
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function dateStr(d) { return d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function todayStr() { return dateStr(new Date()); }
+  function todayISO() { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function isoToDisplay(iso) { if (!iso) return todayStr(); const p = String(iso).split('-'); return p.length === 3 ? (Number(p[2]) + '/' + Number(p[1]) + '/' + p[0]) : iso; }
+  function daysAgoStr(n) { const d = new Date(); d.setDate(d.getDate() - n); return dateStr(d); }
+
+  const MIC_SVG = '<svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>';
+  const CLIPBOARD_SVG = '<svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg>';
+
+  function statusMeta(st) {
+    return st === 'recovered' ? { cls: 'ok', label: 'Đã khỏi' }
+      : st === 'lost' ? { cls: 'danger', label: 'Không qua khỏi' }
+        : st === 'watch' ? { cls: 'med', label: 'Đang theo dõi' }
+          : { cls: 'warn', label: 'Đang điều trị' };
+  }
+  function caseCompleteness(c) {
+    const fields = ['customer', 'species', 'province', 'stage', 'herdSize', 'affectedCount', 'deadCount', 'started', 'symptoms', 'usedProducts'];
+    return Math.round(fields.filter(k => String(c[k] || '').trim()).length / fields.length * 100);
+  }
+  function caseToQuery(c) {
+    const bits = [];
+    if (c.species) bits.push(c.species + (c.stage ? (' ' + c.stage) : ''));
+    if (c.province) bits.push('tại ' + c.province);
+    if (c.herdSize) bits.push('tổng đàn ' + c.herdSize + ' con');
+    if (c.affectedCount) bits.push(c.affectedCount + ' con mắc');
+    if (c.deadCount) bits.push(c.deadCount + ' con chết');
+    if (c.symptoms) bits.push(c.symptoms);
+    if (c.started) bits.push('khởi phát ' + c.started);
+    return bits.join(', ') + '.';
+  }
+
+  /* ---- Chẩn đoán cho ca (thuần, không đụng state hỏi-đáp đa lượt) ---- */
+  function scoresForDisease(c, id) {
+    const natural = diagnose(((c.species || '') + ' ' + (c.symptoms || '')).trim());
+    const forced = natural.find(s => s.d.id === id);
+    if (forced) return [forced, ...natural.filter(s => s !== forced)].slice(0, 3);
+    const d = disById[id];
+    if (!d) return natural.slice(0, 3);
+    return [{ d, score: 4, hits: (d.trieu_chung || []).slice(0, 3) }, ...natural].slice(0, 3);
+  }
+  function dxReportHtml(scores, caseId) {
+    const top = scores[0], d = top.d;
+    const conf = Math.min(94, 56 + top.score * 7);
+    const animal = d.vat_nuoi === 'heo' ? 'Heo' : 'Gà';
+    const risk = SEV[d.muc_do];
+    const riskTxt = risk === 'high' ? (d.muc_do === 'nguy_hiem' ? 'Khẩn cấp' : 'Cao') : risk === 'med' ? 'Trung bình' : 'Thấp';
+    const diff = scores.slice(1).map(s => s.d.ten_benh.split(' (')[0]);
+    const prods = (d.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean);
+    const prodHtml = prods.map(p => `
+      <div class="product-line" data-prod="${esc(p.ma_sp)}"><div class="pl-main"><span class="role-tag">${ROLE[p.loai] || 'Sản phẩm'}</span><b>${esc(p.ten)}</b><small>${esc(p.lieu_luong || '')}</small></div><div class="pl-price">${fmtVnd(p.gia_vnd)}</div></div>`).join('');
+    const needExpert = d.muc_do === 'nguy_hiem' || d.co_thuoc_dac_tri === false || d.can_chuyen_gia;
+    const expertMsg = typeof d.can_chuyen_gia === 'string' ? d.can_chuyen_gia : 'Trường hợp diễn biến nhanh / lan rộng — chuyển bộ phận kỹ thuật hoặc bác sĩ thú y xác minh, không tự kê đơn đặc trị.';
+    return `
+      <p class="ans-lead">Khả năng cao nhất đàn <b>${animal}</b> bị: <b>${esc(d.ten_benh)}</b>.</p>
+      <div class="confidence"><i style="width:${conf}%"></i></div>
+      <div class="muted-note">Độ tin cậy ~${conf}% · mức rủi ro: <b style="color:${risk === 'high' ? 'var(--danger)' : risk === 'med' ? 'var(--warn)' : 'var(--ok)'}">${riskTxt}</b></div>
+      <div class="panel"><h5>🧪 Chẩn đoán phân biệt &amp; xét nghiệm</h5><p>${esc(d.chan_doan)}</p>${diff.length ? `<div class="kv"><b>Phân biệt với</b><span>${esc(diff.join(', '))}</span></div>` : ''}<div class="kv"><b>Cần xét nghiệm</b><span>${esc(d.xet_nghiem || 'Theo chỉ định kỹ thuật')}</span></div></div>
+      <div class="panel green"><h5>${SVG.list} Khuyến nghị hành động (Phác đồ xử lý)</h5><ul>${splitSteps(d.buoc_xu_ly).map(s => `<li>${esc(s)}</li>`).join('')}</ul>${d.vaccine_phong && prodById[d.vaccine_phong] ? `<div class="kv" style="margin-top:6px"><b>Vaccine phòng</b><span>${esc(prodById[d.vaccine_phong].ten)}</span></div>` : ''}</div>
+      ${prods.length ? `<div class="panel"><h5>${SVG.package} Thuốc điều trị &amp; liều dùng</h5>${prodHtml}</div>` : ''}
+      ${needExpert ? `<div class="flag-expert">${SVG.flag} <span><b>Chuyển chuyên gia.</b> ${esc(expertMsg)}</span></div>` : ''}
+      <div class="warning">AI chỉ hỗ trợ tư vấn ban đầu. Hướng điều trị và liều dùng cần đối chiếu nhãn sản phẩm, tài liệu kỹ thuật và ý kiến chuyên môn từ Anova.</div>
+      ${srcRow(['Dịch tễ học Anova', 'An toàn sinh học & vaccine', 'Catalogue sản phẩm'])}`;
+  }
+  function diagnoseForCase(c, forceId) {
+    const scores = forceId ? scoresForDisease(c, forceId) : diagnose(((c.species || '') + ' ' + (c.symptoms || '')).trim());
+    if (!scores.length) return { dxName: '', dxId: '', riskLevel: '', html: '<p class="ans-lead">Chưa đủ dữ liệu để chẩn đoán tự động — anh/chị mô tả thêm triệu chứng ở ô hỏi đáp bên dưới nhé.</p>' };
+    const d = scores[0].d;
+    return { dxName: d.ten_benh, dxId: d.id, riskLevel: SEV[d.muc_do] || 'low', html: dxReportHtml(scores, c.id) };
+  }
+  function attachDiagnosis(c, forceId) {
+    const dx = diagnoseForCase(c, forceId);
+    c.dxName = dx.dxName; c.dxId = dx.dxId; c.riskLevel = dx.riskLevel;
+    c.chat = [{ who: 'user', text: 'Tạo ca: ' + caseToQuery(c) }, { who: 'ai', html: dx.html }];
+  }
+
+  /* ---- Hỏi đáp trên ca ---- */
+  function caseBubbleHtml(m) {
+    if (m.who === 'user') return `<div class="bubble user">${esc(m.text || '')}</div>`;
+    return `<div class="bubble ai">${m.html || esc(m.text || '')}</div>`;
+  }
+  function caseAnswer(text, c) {
+    const q = norm(text);
+    const prod = findProduct(text);
+    if (/(khuyen mai|uu dai|combo|chiet khau|tich diem)/.test(q)) return answerPromo(text, true);
+    if (prod && /(gia|lieu|cong dung|duong dung|tra cuu|bao quan|chong chi dinh|ngung thuoc|dung)/.test(q)) return answerProduct(prod);
+    const dis = findDiseaseByName(text) || (c.dxId ? disById[c.dxId] : null);
+    if (/(phac do|dieu tri|xu ly|chua|phong|tai phat|buoc)/.test(q) && dis) return answerProtocol(dis);
+    if (prod) return answerProduct(prod);
+    const scores = diagnose(((c.species || '') + ' ' + (c.symptoms || '') + ' ' + text).trim());
+    if (scores.length) return dxReportHtml(scores, c.id);
+    if (dis) return answerProtocol(dis);
+    return `<p>Tôi có thể giúp với ca này: <b>phác đồ điều trị</b>, <b>liều dùng sản phẩm</b>, <b>cách phòng tái phát</b>, hoặc mô tả thêm triệu chứng để chẩn đoán lại. Anh/chị hỏi cụ thể hơn nhé.</p>`;
+  }
+  function caseChatScroll() { const el = $('#caseChat'); if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; }); }
+  function caseAsk(text) {
+    const c = getCase(state.currentCase); if (!c) return;
+    const chat = $('#caseChat'); if (!chat) return;
+    c.chat.push({ who: 'user', text });
+    chat.insertAdjacentHTML('beforeend', `<div class="bubble user">${esc(text)}</div>`);
+    const t = document.createElement('div'); t.className = 'bubble ai typing'; t.innerHTML = '<i></i><i></i><i></i>';
+    chat.appendChild(t); caseChatScroll();
+    setTimeout(() => {
+      const html = caseAnswer(text, c);
+      t.outerHTML = `<div class="bubble ai">${html}</div>`;
+      c.chat.push({ who: 'ai', html });
+      c.updated = todayStr(); c.updatedAt = Date.now();
+      persistCases(); caseChatScroll();
+    }, 480);
+  }
+  function caseSend() { const i = $('#caseInput'); if (!i) return; const v = i.value.trim(); if (!v) return; i.value = ''; caseAsk(v); }
+
+  /* ---- Render: Home card · danh sách · chi tiết ---- */
+  function renderCaseHome() {
+    const cs = state.cases || [];
+    const active = cs.filter(c => c.status === 'active' || c.status === 'watch').length;
+    const cnt = $('#caseHomeCount'); if (cnt) cnt.textContent = cs.length ? `${cs.length} ca · ${active} đang theo dõi` : 'Chưa có ca';
+    const list = $('#caseHomeList'); if (!list) return;
+    list.innerHTML = cs.slice(0, 2).map(c => {
+      const sm = statusMeta(c.status);
+      return `<button class="chm" data-case="${esc(c.id)}"><span class="chm-main"><b>${esc((c.species || 'Ca') + (c.province ? (' · ' + c.province) : ''))}</b><small>${esc((c.dxName || 'Chưa chẩn đoán').split(' (')[0])}</small></span><span class="case-status ${sm.cls}">${sm.label}</span></button>`;
+    }).join('');
+  }
+  function caseCardHtml(c) {
+    const sm = statusMeta(c.status);
+    const tn = (c.treatments || []).length;
+    return `<button class="case-card" data-case="${esc(c.id)}">
+      <div class="cc-top"><span class="cc-title">${esc((c.species || 'Ca') + (c.province ? (' · ' + c.province) : ''))}</span><span class="case-status ${sm.cls}">${sm.label}</span></div>
+      <div class="cc-sym">${esc(clip(c.symptoms || c.note || 'Chưa có mô tả triệu chứng', 88))}</div>
+      <div class="cc-meta">
+        <span>${SVG.science} ${esc((c.dxName || 'Chưa chẩn đoán').split(' (')[0])}</span>
+        <span>${SVG.package} ${tn} lần điều trị</span>
+        <span>Cập nhật ${esc(c.updated || c.created || '')}</span>
+      </div>
+    </button>`;
+  }
+  function caseEmptyHtml() {
+    return `<div class="case-empty">
+      <div class="ce-ico">${CLIPBOARD_SVG}</div>
+      <h3>Chưa có ca bệnh nào</h3>
+      <p>Tạo ca đầu tiên để AI chẩn đoán, hỏi đáp ngay trên ca, ghi nhật ký điều trị và theo dõi hiệu quả sản phẩm.</p>
+      <div class="case-flow">
+        <span>1 · Tạo ca bệnh (loài, triệu chứng…)</span>
+        <span>2 · AI chẩn đoán &amp; hỏi đáp trên ca</span>
+        <span>3 · Ghi nhật ký điều trị theo thời gian</span>
+        <span>4 · Đánh giá kết quả → hiệu quả sản phẩm</span>
+      </div>
+      <button class="btn btn-primary" data-newcase>＋ Tạo ca bệnh</button>
+    </div>`;
+  }
+  function productEffectiveness() {
+    const map = {};
+    (state.cases || []).forEach(c => {
+      if (!c.outcome) return;
+      const names = new Set();
+      (c.treatments || []).forEach(t => { if (t.productName) names.add(t.productName); });
+      (c.outcome.effProductNames || []).forEach(n => names.add(n));
+      const rec = c.outcome.status === 'recovered';
+      names.forEach(n => { const m = map[n] || (map[n] = { name: n, uses: 0, recovered: 0 }); m.uses++; if (rec) m.recovered++; });
+    });
+    return Object.values(map).sort((a, b) => b.uses - a.uses || b.recovered - a.recovered);
+  }
+  function effectivenessCardHtml() {
+    const eff = productEffectiveness();
+    if (!eff.length) return '';
+    const rows = eff.slice(0, 6).map(m => {
+      const pct = m.uses ? Math.round(m.recovered / m.uses * 100) : 0;
+      const cls = pct >= 75 ? '' : pct >= 50 ? 'warn' : 'low';
+      const p = findProduct(m.name);
+      const nameHtml = p ? `<span class="eff-name" data-prod="${esc(p.ma_sp)}">${esc(m.name)} ›</span>` : `<span class="eff-name">${esc(m.name)}</span>`;
+      return `<div class="eff-row"><div class="eff-top">${nameHtml}<span class="eff-stat"><b>${pct}%</b> khỏi · ${m.uses} ca</span></div><div class="eff-bar ${cls}"><i style="width:${pct}%"></i></div></div>`;
+    }).join('');
+    const rated = (state.cases || []).filter(c => c.outcome).length;
+    return `<div class="card"><div class="case-section-title">${SVG.trendingUp} Hiệu quả sản phẩm</div><p class="subtext">Tổng hợp từ ${rated} ca đã đánh giá — tỉ lệ ca hồi phục khi có dùng từng sản phẩm.</p>${rows}</div>`;
+  }
+  function renderCases() {
+    const body = $('#casesBody'); if (!body) return;
+    const cs = state.cases || [];
+    if (!cs.length) { body.innerHTML = caseEmptyHtml(); return; }
+    body.innerHTML = `<button class="btn btn-primary" data-newcase style="margin-bottom:14px">＋ Tạo ca bệnh</button>`
+      + cs.map(caseCardHtml).join('')
+      + effectivenessCardHtml();
+  }
+
+  function caseProfileHtml(c) {
+    const sm = statusMeta(c.status);
+    const comp = caseCompleteness(c);
+    const kv = (k, v) => v ? `<div class="kv"><b>${k}</b><span>${esc(v)}</span></div>` : '';
+    const riskTxt = c.riskLevel === 'high' ? 'Cao' : c.riskLevel === 'med' ? 'Trung bình' : c.riskLevel === 'low' ? 'Thấp' : '';
+    return `<div class="card case-profile">
+      <div class="cp-head"><span class="cp-id">${esc(c.id)}</span><span class="case-status ${sm.cls}">${sm.label}</span></div>
+      ${c.dxName ? `<div class="cp-dx">${SVG.science}<div><b>${esc(c.dxName)}</b><small>Chẩn đoán hỗ trợ${riskTxt ? ` · mức rủi ro ${riskTxt}` : ''}</small></div></div>` : ''}
+      <div style="margin-top:12px">
+        ${kv('Khách / trại', c.customer)}
+        ${kv('Loài / giai đoạn', (c.species || '') + (c.stage ? (' · ' + c.stage) : ''))}
+        ${kv('Tỉnh / vùng', c.province)}
+        ${kv('Tổng đàn', c.herdSize ? c.herdSize + ' con' : '')}
+        ${kv('Mắc / chết', (c.affectedCount || '?') + ' / ' + (c.deadCount || '?') + ' con')}
+        ${kv('Khởi phát', c.started)}
+        ${kv('Triệu chứng', c.symptoms)}
+        ${kv('Đã dùng thuốc', c.usedProducts)}
+      </div>
+      <div class="cp-complete"><span>Hồ sơ ${comp}%</span><div class="bar"><i style="width:${comp}%"></i></div></div>
+      ${salesActionsRow({ dxId: c.dxId, caseId: c.id, escalate: !!(c.dxId && disById[c.dxId] && (disById[c.dxId].muc_do === 'nguy_hiem' || disById[c.dxId].co_thuoc_dac_tri === false)) })}
+    </div>`;
+  }
+  function caseQaHtml(c) {
+    const quicks = ['Phác đồ xử lý chi tiết', 'Nên dùng sản phẩm nào?', 'Liều dùng & đường dùng', 'Cách phòng tái phát'];
+    return `<div class="card">
+      <div class="case-section-title">${SVG.chat} Chẩn đoán &amp; hỏi đáp trên ca <span class="step">Bước 2</span></div>
+      <div class="case-chat" id="caseChat">${(c.chat || []).map(caseBubbleHtml).join('')}</div>
+      <div class="case-composer">
+        <input id="caseInput" placeholder="Hỏi thêm về ca này…" />
+        <button class="case-mic" id="caseVoice" type="button" title="Hỏi bằng giọng nói" aria-label="Hỏi bằng giọng nói">${MIC_SVG}</button>
+        <button class="case-send" id="caseSend" type="button" aria-label="Gửi"><svg class="ico" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+      </div>
+      <div class="quick-row" id="caseQuick" style="margin-top:11px">${quicks.map(q => `<button class="quick">${esc(q)}</button>`).join('')}</div>
+    </div>`;
+  }
+  function caseTreatmentsHtml(c) {
+    const items = (c.treatments || []);
+    const body = items.length
+      ? `<div class="tl">${items.slice().reverse().map(t => `
+          <div class="tl-item">
+            <div class="tl-date">${esc(t.date || '')}</div>
+            <div class="tl-prod">${esc(t.productName || 'Can thiệp')}</div>
+            ${t.dose ? `<div class="tl-meta">${esc(t.dose)}</div>` : ''}
+            ${t.note ? `<div class="tl-meta">${esc(t.note)}</div>` : ''}
+            ${t.response ? `<span class="tl-resp ${t.respClass || 'mid'}">${esc(t.response)}</span>` : ''}
+          </div>`).join('')}</div>`
+      : `<p class="outcome-prompt">Chưa có lần điều trị nào. Ghi lại thuốc đã dùng và đáp ứng để theo dõi tiến triển.</p>`;
+    return `<div class="card"><div class="case-section-title">${SVG.package} Nhật ký điều trị <span class="step">Bước 3</span></div>${body}<div class="spacer-12"></div><button class="btn btn-secondary" id="cdAddTreatment">＋ Ghi nhận điều trị</button></div>`;
+  }
+  function caseOutcomeHtml(c) {
+    const o = c.outcome;
+    let body;
+    if (o) {
+      const sm = statusMeta(o.status);
+      const eff = (o.effProductNames || []);
+      body = `<div class="outcome-badge ${sm.cls}">${o.status === 'recovered' ? '✓' : o.status === 'lost' ? '✕' : '•'} ${sm.label}${o.recoveredPct ? ` · ${esc(o.recoveredPct)}% hồi phục` : ''}</div>
+        ${eff.length ? `<div class="eff-tags">${eff.map(n => `<span class="pill green">${esc(n)}</span>`).join('')}</div>` : ''}
+        ${o.note ? `<p class="tl-meta" style="margin-top:10px">${esc(o.note)}</p>` : ''}
+        <div class="spacer-12"></div><button class="btn btn-ghost" id="cdRate">Cập nhật đánh giá</button>`;
+    } else {
+      body = `<p class="outcome-prompt">Khi ca kết thúc, chốt kết quả (khỏi / theo dõi / không qua khỏi) và sản phẩm có hiệu quả — dữ liệu sẽ gộp vào "Hiệu quả sản phẩm".</p><button class="btn btn-primary" id="cdRate">Đánh giá kết quả</button>`;
+    }
+    return `<div class="card"><div class="case-section-title">${SVG.flag} Đánh giá kết quả <span class="step">Bước 4</span></div>${body}</div>`;
+  }
+  function renderCaseDetail(c) {
+    c = c || getCase(state.currentCase); if (!c) return;
+    $('#cdTitle').textContent = (c.species || 'Ca bệnh') + (c.province ? (' · ' + c.province) : '');
+    $('#cdSub').textContent = c.customer || ('Ca ' + c.id);
+    $('#caseDetailBody').innerHTML = caseProfileHtml(c) + caseQaHtml(c) + caseTreatmentsHtml(c) + caseOutcomeHtml(c);
+    $('#caseSend').onclick = caseSend;
+    $('#caseInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') caseSend(); });
+    $('#caseQuick').onclick = (e) => { const b = e.target.closest('.quick'); if (!b) return; const inp = $('#caseInput'); if (inp) inp.value = ''; caseAsk(b.textContent); };
+    initVoiceInput('caseVoice', 'caseInput');
+    const at = $('#cdAddTreatment'); if (at) at.onclick = openTreatmentForm;
+    const rt = $('#cdRate'); if (rt) rt.onclick = openOutcomeForm;
+    const cc = $('#caseChat'); if (cc) cc.scrollTop = 0;   // mở ca: xem từ đầu hội thoại
+  }
+  function openCaseDetail(id) {
+    const c = getCase(id); if (!c) return;
+    state.currentCase = id;
+    renderCaseDetail(c);
+    go('caseDetail');
+  }
+
+  /* ---- Form: tạo ca ---- */
+  function openCaseForm() {
+    const provinces = (DB.provinces || []).map(p => `<option value="${esc(p.ten)}">${esc(p.ten)}</option>`).join('');
+    const species = ['Heo', 'Gà', 'Vịt', 'Bò', 'Khác'].map(s => `<option value="${s}">${s}</option>`).join('');
+    const stageOpts = ['', 'Heo con', 'Heo cai sữa', 'Heo thịt', 'Nái', 'Hậu bị', 'Gà con', 'Gà giò', 'Gà đẻ', 'Khác'].map(s => `<option value="${esc(s)}">${s || '— Chọn giai đoạn —'}</option>`).join('');
+    const startedOpts = ['', 'Hôm nay', '1–2 ngày trước', '3–5 ngày trước', 'Trên 1 tuần'].map(s => `<option value="${esc(s)}">${s || '— Chọn thời điểm —'}</option>`).join('');
+    const syms = ['sốt cao', 'bỏ ăn', 'tiêu chảy', 'ho/khó thở', 'da tím tái', 'chết nhanh', 'xuất huyết', 'thần kinh/vẹo cổ'];
+    openSheet(`
+      <h3>Tạo ca bệnh</h3>
+      <p class="sub">Nhập nhanh thông tin ca — AI sẽ chẩn đoán &amp; mở hỏi đáp ngay trên ca.</p>
+      <div class="field"><label class="lbl">Khách / trại / NPP</label><input class="in" id="cfCustomer" placeholder="VD: Trại heo Long Thành"></div>
+      <div class="form-row">
+        <div class="field"><label class="lbl">Loài nuôi</label><select class="in" id="cfSpecies">${species}</select></div>
+        <div class="field"><label class="lbl">Tỉnh / thành</label><select class="in" id="cfProvince"><option value="">— Chọn tỉnh —</option>${provinces}</select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label class="lbl">Giai đoạn</label><select class="in" id="cfStage">${stageOpts}</select></div>
+        <div class="field"><label class="lbl">Bắt đầu từ</label><select class="in" id="cfStarted">${startedOpts}</select></div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="field"><label class="lbl">Tổng đàn</label><input class="in" type="number" id="cfHerd" placeholder="200"></div>
+        <div class="field"><label class="lbl">Số mắc</label><input class="in" type="number" id="cfAffected" placeholder="30"></div>
+        <div class="field"><label class="lbl">Số chết</label><input class="in" type="number" id="cfDead" placeholder="5"></div>
+      </div>
+      <div class="field"><label class="lbl">Triệu chứng <span style="color:var(--danger)">*</span></label>
+        <textarea class="in" id="cfSymptoms" placeholder="VD: sốt 41 độ, bỏ ăn, da tai bụng tím, chết nhanh…"></textarea>
+        <div class="quick-row" id="cfSymChips" style="margin-top:8px">${syms.map(s => `<button class="chip-pick" type="button" data-sym="${esc(s)}">＋ ${esc(s)}</button>`).join('')}</div>
+      </div>
+      <div class="field"><label class="lbl">Đã dùng thuốc / vaccine (tuỳ chọn)</label><textarea class="in" id="cfUsed" placeholder="Để tránh gợi ý trùng/sai — VD: đã tiêm vaccine dịch tả cổ điển tháng trước"></textarea></div>
+      <div class="sheet-err" id="cfErr" style="display:none"></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="cfCancel">Hủy</button>
+        <button class="btn btn-primary" id="cfCreate">Tạo ca &amp; chẩn đoán</button>
+      </div>
+    `);
+    $('#cfSymChips').onclick = (e) => {
+      const b = e.target.closest('[data-sym]'); if (!b) return; e.preventDefault();
+      const ta = $('#cfSymptoms'); const sym = b.dataset.sym;
+      if (norm(ta.value).includes(norm(sym))) return;
+      ta.value = ta.value.trim() ? (ta.value.replace(/\s*$/, '') + ', ' + sym) : sym;
+    };
+    $('#cfCancel').onclick = closeSheet;
+    $('#cfCreate').onclick = createCase;
+  }
+  function createCase() {
+    const v = (s) => { const e = $(s); return e ? String(e.value).trim() : ''; };
+    const symptoms = v('#cfSymptoms');
+    if (!symptoms) { const er = $('#cfErr'); er.style.display = 'block'; er.textContent = 'Vui lòng mô tả ít nhất vài triệu chứng để AI chẩn đoán.'; return; }
+    const c = Object.assign({ id: uid('CASE-'), created: todayStr(), updated: todayStr(), updatedAt: Date.now(), status: 'active', treatments: [], outcome: null, note: '' }, {
+      customer: v('#cfCustomer'), species: v('#cfSpecies') || 'Heo', province: v('#cfProvince'), stage: v('#cfStage'),
+      started: v('#cfStarted'), herdSize: v('#cfHerd'), affectedCount: v('#cfAffected'), deadCount: v('#cfDead'),
+      symptoms, usedProducts: v('#cfUsed')
+    });
+    attachDiagnosis(c);
+    state.cases.unshift(c);
+    persistCases();
+    closeSheet();
+    openCaseDetail(c.id);
+    toast('Đã tạo ca bệnh & chẩn đoán');
+  }
+
+  /* ---- Form: ghi nhận điều trị ---- */
+  function openTreatmentForm() {
+    const c = getCase(state.currentCase); if (!c) return;
+    const opts = DB.products.slice().sort((a, b) => String(a.ten).localeCompare(String(b.ten), 'vi')).map(p => `<option value="${esc(p.ma_sp)}">${esc(p.ten)}</option>`).join('');
+    const respOpts = ['Cải thiện rõ', 'Cải thiện nhẹ', 'Chưa chuyển biến', 'Nặng hơn'].map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+    openSheet(`
+      <h3>Ghi nhận điều trị</h3>
+      <p class="sub">Thêm một lần dùng thuốc / can thiệp cho ca này.</p>
+      <div class="form-row">
+        <div class="field"><label class="lbl">Ngày</label><input class="in" type="date" id="tDate" value="${todayISO()}"></div>
+        <div class="field"><label class="lbl">Đáp ứng</label><select class="in" id="tResp">${respOpts}</select></div>
+      </div>
+      <div class="field"><label class="lbl">Sản phẩm</label><select class="in" id="tProd">${opts}</select></div>
+      <div class="field"><label class="lbl">Liều dùng</label><input class="in" id="tDose" placeholder="VD: 1 ml/10 kg, tiêm bắp, 3 ngày"></div>
+      <div class="field"><label class="lbl">Ghi chú (tuỳ chọn)</label><textarea class="in" id="tNote" placeholder="Diễn biến, số con đáp ứng…"></textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="tCancel">Hủy</button>
+        <button class="btn btn-primary" id="tSave">Lưu điều trị</button>
+      </div>
+    `);
+    const setDose = () => { const p = prodById[$('#tProd').value]; $('#tDose').value = p ? (p.lieu_luong || '') : ''; };
+    setDose();
+    $('#tProd').onchange = setDose;
+    $('#tCancel').onclick = closeSheet;
+    $('#tSave').onclick = saveTreatment;
+  }
+  function saveTreatment() {
+    const c = getCase(state.currentCase); if (!c) return;
+    const p = prodById[$('#tProd').value];
+    const resp = $('#tResp').value;
+    const rc = /rõ|nhẹ/.test(resp) ? 'up' : /Nặng/.test(resp) ? 'down' : 'mid';
+    c.treatments = c.treatments || [];
+    c.treatments.push({ date: isoToDisplay($('#tDate').value), productId: p ? p.ma_sp : '', productName: p ? p.ten : '', dose: $('#tDose').value.trim(), days: '', response: resp, respClass: rc, note: $('#tNote').value.trim() });
+    c.updated = todayStr(); c.updatedAt = Date.now();
+    persistCases(); closeSheet(); renderCaseDetail(c); toast('Đã ghi nhận điều trị');
+  }
+
+  /* ---- Form: đánh giá kết quả ---- */
+  function openOutcomeForm() {
+    const c = getCase(state.currentCase); if (!c) return;
+    const cur = c.outcome || {};
+    const prodNames = Array.from(new Set((c.treatments || []).map(t => t.productName).filter(Boolean)));
+    const pct = cur.recoveredPct || (c.herdSize && c.deadCount ? Math.max(0, Math.round((Number(c.herdSize) - Number(c.deadCount)) / Number(c.herdSize) * 100)) : '');
+    const chips = prodNames.length
+      ? prodNames.map(n => `<button class="chip-pick ${(cur.effProductNames || []).includes(n) ? 'on' : ''}" type="button" data-eff="${esc(n)}">${esc(n)}</button>`).join('')
+      : '<span class="muted-note">Chưa có sản phẩm trong nhật ký — ghi nhận điều trị trước để chọn.</span>';
+    openSheet(`
+      <h3>Đánh giá kết quả</h3>
+      <p class="sub">Chốt kết quả điều trị của ca — dữ liệu sẽ gộp vào "Hiệu quả sản phẩm".</p>
+      <label class="lbl">Kết quả</label>
+      <div class="opt-row" id="oStatus" style="margin-bottom:13px">
+        <button class="opt ${cur.status === 'recovered' ? 'active ok' : ''}" type="button" data-st="recovered">Đã khỏi</button>
+        <button class="opt ${cur.status === 'watch' ? 'active' : ''}" type="button" data-st="watch">Đang theo dõi</button>
+        <button class="opt ${cur.status === 'lost' ? 'active danger' : ''}" type="button" data-st="lost">Không qua khỏi</button>
+      </div>
+      <div class="field"><label class="lbl">Tỉ lệ hồi phục (%)</label><input class="in" type="number" min="0" max="100" id="oPct" value="${esc(pct)}" placeholder="VD: 85"></div>
+      <label class="lbl">Sản phẩm có hiệu quả</label>
+      <div class="quick-row" id="oEff" style="margin:0 0 13px">${chips}</div>
+      <div class="field"><label class="lbl">Ghi chú (tuỳ chọn)</label><textarea class="in" id="oNote" placeholder="Nhận định hiệu quả, bài học cho lần sau…">${esc(cur.note || '')}</textarea></div>
+      <div class="sheet-err" id="oErr" style="display:none"></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="oCancel">Hủy</button>
+        <button class="btn btn-primary" id="oSave">Lưu đánh giá</button>
+      </div>
+    `);
+    let st = cur.status || '';
+    $('#oStatus').onclick = (e) => {
+      const b = e.target.closest('[data-st]'); if (!b) return; st = b.dataset.st;
+      $$('#oStatus .opt').forEach(o => { o.className = 'opt'; });
+      b.className = 'opt active' + (st === 'recovered' ? ' ok' : st === 'lost' ? ' danger' : '');
+    };
+    $('#oEff').onclick = (e) => { const b = e.target.closest('[data-eff]'); if (!b) return; b.classList.toggle('on'); };
+    $('#oCancel').onclick = closeSheet;
+    $('#oSave').onclick = () => {
+      if (!st) { const er = $('#oErr'); er.style.display = 'block'; er.textContent = 'Chọn kết quả điều trị (khỏi / theo dõi / không qua khỏi).'; return; }
+      const eff = $$('#oEff .chip-pick.on').map(x => x.dataset.eff);
+      c.outcome = { status: st, recoveredPct: $('#oPct').value.trim(), effProductNames: eff, note: $('#oNote').value.trim(), ratedAt: todayStr() };
+      c.status = st; c.updated = todayStr(); c.updatedAt = Date.now();
+      persistCases(); closeSheet(); renderCaseDetail(c); toast('Đã lưu đánh giá kết quả');
+    };
+  }
+
+  /* ---- Nạp / gieo dữ liệu ca bệnh ---- */
+  function loadCases() {
+    const saved = loadLocal('ai4sales_cases', null);
+    if (saved && Array.isArray(saved) && saved.length) { state.cases = saved; return; }
+    state.cases = seedCases();
+    saveLocal('ai4sales_cases', state.cases);
+  }
+  function seedCases() {
+    const T = (name, response, dayOffset, note) => {
+      const p = findProduct(name);
+      const rc = /rõ|nhẹ/.test(response) ? 'up' : /Nặng/.test(response) ? 'down' : 'mid';
+      return { date: daysAgoStr(dayOffset), productId: p ? p.ma_sp : '', productName: p ? p.ten : name, dose: p ? (p.lieu_luong || '') : '', days: '', response, respClass: rc, note: note || '' };
+    };
+    const mk = (o, treatments, outcome, forceId) => {
+      const c = Object.assign({ note: '', usedProducts: '', treatments: treatments || [], outcome: outcome || null }, o);
+      attachDiagnosis(c, forceId);
+      c.status = outcome ? outcome.status : 'active';
+      return c;
+    };
+    return [
+      mk({ id: 'CASE-3071', created: daysAgoStr(3), updated: daysAgoStr(1), updatedAt: Date.now() - 1 * 864e5,
+        customer: 'Trại heo Tân Lập', species: 'Heo', stage: 'Heo con', province: 'Tây Ninh',
+        herdSize: '180', affectedCount: '24', deadCount: '2', started: '1–2 ngày trước',
+        symptoms: 'heo con sau cai sữa tiêu chảy phân vàng tanh, mất nước, bú kém, sút cân' },
+        [T('Anova Enroflox 10%', 'Cải thiện nhẹ', 1), T('Anova ProGut', 'Cải thiện nhẹ', 1, 'Men vi sinh ổn định đường ruột')],
+        null, 'D05'),
+      mk({ id: 'CASE-2980', created: daysAgoStr(6), updated: daysAgoStr(3), updatedAt: Date.now() - 3 * 864e5,
+        customer: 'Trại heo Sáu Lành', species: 'Heo', stage: 'Heo thịt', province: 'Bến Tre',
+        herdSize: '260', affectedCount: '40', deadCount: '14', started: '3–5 ngày trước',
+        symptoms: 'heo sốt cao đột ngột, bỏ ăn, khó thở, tụ huyết vùng hầu họng, da tím, chết nhanh' },
+        [T('Anova Enroflox 10%', 'Chưa chuyển biến', 5), T('Anova Electrolyte-Plus', 'Cải thiện nhẹ', 5, 'Bù nước, hỗ trợ hạ sốt')],
+        { status: 'lost', recoveredPct: '52', effProductNames: [], note: 'Phát hiện muộn, vào đàn nhanh — lần sau cần tách con bệnh và can thiệp sớm hơn.', ratedAt: daysAgoStr(3) }, 'D07'),
+      mk({ id: 'CASE-2864', created: daysAgoStr(8), updated: daysAgoStr(5), updatedAt: Date.now() - 5 * 864e5,
+        customer: 'Trại heo Hòa Phú', species: 'Heo', stage: 'Nái', province: 'Bình Dương',
+        herdSize: '120', affectedCount: '18', deadCount: '11', started: '1–2 ngày trước',
+        symptoms: 'heo sốt cao 41 độ, bỏ ăn, da tai bụng đỏ tím, nằm chồng, chết nhanh tỷ lệ cao' },
+        [T('Anova Iodine 10%', 'Chưa chuyển biến', 6, 'Sát trùng toàn trại, rải vôi lối đi'), T('NAVET-ASFVAC', 'Chưa chuyển biến', 5, 'Tiêm phòng đàn chưa nhiễm')],
+        { status: 'lost', recoveredPct: '8', effProductNames: [], note: 'Nghi ASF — không có thuốc đặc trị; tập trung an toàn sinh học, cách ly, xử lý theo quy định.', ratedAt: daysAgoStr(5) }, 'D01'),
+      mk({ id: 'CASE-2710', created: daysAgoStr(11), updated: daysAgoStr(6), updatedAt: Date.now() - 6 * 864e5,
+        customer: 'HTX gà Phú Đông', species: 'Gà', stage: 'Gà giò', province: 'Tiền Giang',
+        herdSize: '2000', affectedCount: '260', deadCount: '70', started: '3–5 ngày trước',
+        symptoms: 'gà ủ rũ, giảm ăn, tiêu chảy phân xanh trắng, khó thở, vẹo cổ, giảm đẻ' },
+        [T('Anova Iodine 10%', 'Cải thiện nhẹ', 7, 'Sát trùng chuồng, nước uống'), T('Anova Electrolyte-Plus', 'Cải thiện rõ', 6, 'Bù điện giải, vitamin nâng sức đề kháng')],
+        { status: 'recovered', recoveredPct: '78', effProductNames: ['Anova Electrolyte-Plus'], note: 'Cách ly + sát trùng + nâng đề kháng; đàn ổn định sau 5 ngày.', ratedAt: daysAgoStr(6) }, 'D09'),
+      mk({ id: 'CASE-2588', created: daysAgoStr(13), updated: daysAgoStr(7), updatedAt: Date.now() - 7 * 864e5,
+        customer: 'Trại heo Bình Minh', species: 'Heo', stage: 'Heo thịt', province: 'Long An',
+        herdSize: '320', affectedCount: '58', deadCount: '6', started: 'Trên 1 tuần',
+        symptoms: 'heo thịt ho khan kéo dài theo đàn, khó thở, chậm lớn, kém đồng đều' },
+        [T('Anova Florfen-200', 'Cải thiện rõ', 8, 'Đáp ứng nhanh sau 2 ngày'), T('Anova Electrolyte-Plus', 'Cải thiện rõ', 8)],
+        { status: 'recovered', recoveredPct: '88', effProductNames: ['Anova Florfen-200'], note: 'Cải thiện thông thoáng chuồng + kháng sinh đúng nhóm; cân nhắc vaccine suyễn để giảm tái phát.', ratedAt: daysAgoStr(7) }, 'D06'),
+      mk({ id: 'CASE-2461', created: daysAgoStr(16), updated: daysAgoStr(9), updatedAt: Date.now() - 9 * 864e5,
+        customer: 'Trại heo Long Thành', species: 'Heo', stage: 'Heo con', province: 'Đồng Nai',
+        herdSize: '210', affectedCount: '34', deadCount: '4', started: '3–5 ngày trước',
+        symptoms: 'heo con sau cai sữa tiêu chảy phân vàng tanh, mất nước, lờ đờ' },
+        [T('Anova Enroflox 10%', 'Cải thiện rõ', 10, 'Theo kháng sinh đồ'), T('Anova Electrolyte-Plus', 'Cải thiện rõ', 10, 'Bù nước - điện giải là then chốt')],
+        { status: 'recovered', recoveredPct: '90', effProductNames: ['Anova Enroflox 10%', 'Anova Electrolyte-Plus'], note: 'Bù điện giải sớm + kháng sinh đúng → giảm chết rõ. Giữ ấm, khô chuồng.', ratedAt: daysAgoStr(9) }, 'D05')
+    ];
+  }
+
+  /* =======================================================================
+     CÔNG CỤ BÁN HÀNG — đơn nháp · tính số lượng · soạn tin gửi khách ·
+     ticket chuyên gia · chiến dịch. Biến tư vấn thành hành động bán hàng.
+     ===================================================================== */
+  function copyText(t) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); toast('Đã copy vào clipboard'); return; } } catch (e) {}
+    try {
+      const ta = document.createElement('textarea'); ta.value = t;
+      ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta); toast('Đã copy vào clipboard');
+    } catch (e) { toast('Không copy được — hãy chọn và copy thủ công'); }
+  }
+  function persistWorkflow() {
+    saveLocal('ai4sales_orders', state.orders);
+    saveLocal('ai4sales_tickets', state.tickets);
+    saveLocal('ai4sales_campaigns', state.campaigns);
+    renderWorkflowHome();
+  }
+  function packSize(p) { const m = String(p.quy_cach || '').match(/(\d+(?:[.,]\d+)?)/); return m ? Number(m[1].replace(',', '.')) : 1; }
+
+  /* Hàng nút hành động gắn dưới câu trả lời chẩn đoán / ca bệnh / push */
+  function salesActionsRow(opts) {
+    opts = opts || {};
+    const ctx = [];
+    if (opts.dxId) ctx.push('data-dx="' + esc(opts.dxId) + '"');
+    if (opts.caseId) ctx.push('data-cid="' + esc(opts.caseId) + '"');
+    if (opts.custId) ctx.push('data-cust2="' + esc(opts.custId) + '"');
+    const c = ctx.join(' ');
+    let h = '<div class="act-row">';
+    h += `<button class="act-btn primary" data-act="order" ${c}>${SVG.receipt} Tạo đơn nháp</button>`;
+    h += `<button class="act-btn" data-act="qty" ${opts.dxId ? ('data-dx="' + esc(opts.dxId) + '"') : ''}>${SVG.calc} Tính số lượng</button>`;
+    h += `<button class="act-btn" data-act="msg" ${c}>${SVG.mail} Soạn tin gửi khách</button>`;
+    if (opts.escalate) h += `<button class="act-btn danger" data-act="ticket" ${c}>${SVG.flag} Ticket chuyên gia</button>`;
+    h += '</div>';
+    return h;
+  }
+  function actionContext(ds) {
+    const ctx = { products: [], customerName: '', dxName: '', dxId: '', herd: '', caseId: '', province: '' };
+    if (ds.cid) { const c = getCase(ds.cid); if (c) { ctx.caseId = c.id; ctx.customerName = c.customer || ''; ctx.dxId = c.dxId || ''; ctx.dxName = c.dxName || ''; ctx.herd = c.herdSize || ''; ctx.province = c.province || ''; } }
+    if (ds.dx) ctx.dxId = ds.dx;
+    if (ctx.dxId) { const d = disById[ctx.dxId]; if (d) { ctx.dxName = ctx.dxName || d.ten_benh; ctx.products = (d.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean); } }
+    if (ds.cust2) {
+      const dt = DB.distributors.find(x => x.id === ds.cust2);
+      if (dt) {
+        ctx.customerName = dt.ten; ctx.province = dt.khu_vuc;
+        try {
+          const t = tierSuggestions(dt, custAgg(dt));
+          const seen = {};
+          ctx.products = [].concat(t.safe || [], t.suggest || [], t.grow || []).filter(p => p && !seen[p.ma_sp] && (seen[p.ma_sp] = 1));
+        } catch (e) {}
+        const ra = state.alerts.find(a => a.tinh === dt.khu_vuc);
+        if (ra && !ctx.dxName) ctx.dxName = (ra.ten_benh || '').split(' (')[0];
+      }
+    }
+    return ctx;
+  }
+  function handleSalesAction(ds) {
+    if (ds.act === 'qty') { const ctx = actionContext(ds); openQtyCalc(ds.pid ? [prodById[ds.pid]].filter(Boolean) : ctx.products, ctx); }
+    else if (ds.act === 'order') openOrderForm(actionContext(ds));
+    else if (ds.act === 'msg') openMessageForm(actionContext(ds));
+    else if (ds.act === 'ticket') openTicketForm(actionContext(ds));
+    else if (ds.act === 'campaign') openCampaignForm(ds.prov || '', ds.benh || '');
+  }
+
+  /* ---- Tính số lượng ---- */
+  function openQtyCalc(products, ctx) {
+    ctx = ctx || {};
+    const list = (products && products.length) ? products : DB.products;
+    const opts = list.map(p => `<option value="${esc(p.ma_sp)}">${esc(p.ten)}</option>`).join('');
+    openSheet(`
+      <h3>Tính số lượng cần đặt</h3>
+      <p class="sub">Ước tính nhanh lượng cần dùng và chi phí tham khảo.</p>
+      <div class="field"><label class="lbl">Sản phẩm</label><select class="in" id="qProd">${opts}</select></div>
+      <div class="form-row">
+        <div class="field"><label class="lbl">Số con</label><input class="in" type="number" id="qCount" value="${esc(ctx.herd || '100')}"></div>
+        <div class="field"><label class="lbl">Kg/con</label><input class="in" type="number" id="qWeight" value="20"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label class="lbl">Số ngày</label><input class="in" type="number" id="qDays" value="3"></div>
+        <div class="field"><label class="lbl">Hao hụt (%)</label><input class="in" type="number" id="qBuffer" value="10"></div>
+      </div>
+      <div id="qResult"></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="qClose">Đóng</button>
+        <button class="btn btn-primary" id="qCalc">Tính</button>
+      </div>
+    `);
+    const calc = () => {
+      const p = prodById[$('#qProd').value]; if (!p) return;
+      const count = Number($('#qCount').value) || 0, w = Number($('#qWeight').value) || 0,
+        days = Number($('#qDays').value) || 1, buf = 1 + (Number($('#qBuffer').value) || 0) / 100;
+      let need = 0, unit = '';
+      if (p.loai === 'vaccine') { need = count * buf; unit = 'liều'; }
+      else if (p.loai === 'khang_sinh' || p.loai === 'dac_tri') { need = (count * w / 10) * days * buf; unit = 'ml/g'; }
+      else if (p.loai === 'sat_trung') { need = (count / 200) * days * buf; unit = 'lần pha'; }
+      else { need = (count * w / 200) * days * buf; unit = 'phần'; }
+      need = Math.max(1, Math.ceil(need));
+      const packs = Math.max(1, Math.ceil(need / packSize(p)));
+      const cost = packs * (p.gia_vnd || 0);
+      $('#qResult').innerHTML = `<div class="panel">
+        <div class="kv"><b>Tổng nhu cầu</b><span>~ ${need.toLocaleString('vi-VN')} ${unit}</span></div>
+        <div class="kv"><b>Quy cách</b><span>${esc(p.quy_cach || '—')}</span></div>
+        <div class="kv"><b>Số lượng đặt</b><span><b style="color:var(--primary-dark)">~ ${packs} quy cách</b></span></div>
+        <div class="kv"><b>Ước tính chi phí</b><span><b style="color:var(--primary-dark)">${fmtVnd(cost)}</b></span></div>
+      </div><div class="muted-note">Số liệu ước tính demo — đối chiếu nhãn thật & bảng giá khi đặt hàng.</div>`;
+    };
+    calc();
+    $('#qProd').onchange = calc;
+    $('#qCalc').onclick = calc;
+    $('#qClose').onclick = closeSheet;
+  }
+
+  /* ---- Đơn nháp ---- */
+  function orderLines(ctx) {
+    const herd = Number(ctx.herd) || 0;
+    return (ctx.products || []).slice(0, 5).map(p => {
+      let qty;
+      if (p.loai === 'vaccine') qty = herd ? Math.ceil(herd * 1.05) + ' liều' : 'theo đàn';
+      else if (p.loai === 'sat_trung') qty = 'theo diện tích';
+      else qty = herd ? (Math.max(1, Math.round(herd / 50)) + ' đv') : '1';
+      return { ma: p.ma_sp, ten: p.ten, role: ROLE[p.loai] || 'Sản phẩm', qty, gia: p.gia_vnd };
+    });
+  }
+  function orderText(o) {
+    return `ĐƠN NHÁP ${o.id}\nKhách: ${o.customer || '—'}\n` +
+      (o.dxName ? ('Bối cảnh: ' + o.dxName + '\n') : '') +
+      o.lines.map(l => `• ${l.ten} — SL: ${l.qty} (${fmtVnd(l.gia)})`).join('\n') +
+      (o.note ? ('\nGhi chú: ' + o.note) : '');
+  }
+  function openOrderForm(ctx) {
+    const lines = orderLines(ctx);
+    if (!lines.length) { toast('Chưa có sản phẩm gợi ý cho đơn này'); return; }
+    openSheet(`
+      <h3>Tạo đơn nháp</h3>
+      <p class="sub">Đơn gợi ý cho ${esc(ctx.customerName || 'khách')} — chỉnh số lượng rồi lưu / copy gửi khách.</p>
+      ${ctx.dxName ? `<div class="kv"><b>Bối cảnh</b><span>${esc(ctx.dxName)}</span></div>` : ''}
+      <div id="ordLines" class="ord-lines">${lines.map((l, i) => `
+        <div class="ord-line">
+          <div class="ord-main"><span class="role-tag">${esc(l.role)}</span><b>${esc(l.ten)}</b><small>${fmtVnd(l.gia)}</small></div>
+          <input class="ord-qty" data-i="${i}" value="${esc(l.qty)}">
+        </div>`).join('')}</div>
+      <div class="field"><label class="lbl">Ghi chú</label><textarea class="in" id="ordNote" placeholder="VD: giao trong tuần, áp dụng KM…"></textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="ordCopy">Copy</button>
+        <button class="btn btn-primary" id="ordSave">Lưu đơn nháp</button>
+      </div>
+    `);
+    const collect = () => { const qs = $$('#ordLines .ord-qty'); return lines.map((l, i) => Object.assign({}, l, { qty: qs[i] ? qs[i].value.trim() : l.qty })); };
+    $('#ordCopy').onclick = () => copyText(orderText({ id: uid('DON-'), customer: ctx.customerName, dxName: ctx.dxName, lines: collect(), note: $('#ordNote').value.trim() }));
+    $('#ordSave').onclick = () => {
+      const o = { id: uid('DON-'), customer: ctx.customerName || '', dxName: ctx.dxName || '', lines: collect(), note: $('#ordNote').value.trim(), status: 'draft', created: todayStr() };
+      state.orders.unshift(o); persistWorkflow(); closeSheet(); toast('Đã lưu đơn nháp ' + o.id);
+    };
+  }
+
+  /* ---- Soạn tin gửi khách ---- */
+  function openMessageForm(ctx) {
+    const prods = (ctx.products || []).slice(0, 3).map(p => p.ten).join(', ');
+    const msg = `Chào anh/chị${ctx.customerName ? (' ' + ctx.customerName) : ''},\n` +
+      (ctx.dxName ? `Khu vực đang có dấu hiệu ${ctx.dxName}. ` : '') +
+      `Anova gợi ý một số sản phẩm phù hợp${prods ? (': ' + prods) : ''}. ` +
+      `Em gửi báo giá & ưu đãi, anh/chị cần số lượng bao nhiêu để em lên đơn ạ?`;
+    openSheet(`
+      <h3>Soạn tin gửi khách</h3>
+      <p class="sub">Tin nhắn Zalo/SMS gợi ý — chỉnh rồi copy gửi khách.</p>
+      <div class="field"><textarea class="in" id="msgText" style="min-height:150px">${esc(msg)}</textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="msgClose">Đóng</button>
+        <button class="btn btn-primary" id="msgCopy">Copy tin nhắn</button>
+      </div>
+    `);
+    $('#msgClose').onclick = closeSheet;
+    $('#msgCopy').onclick = () => copyText($('#msgText').value);
+  }
+
+  /* ---- Ticket chuyên gia ---- */
+  function expertFor(dxId) {
+    const d = disById[dxId];
+    return (d && d.vat_nuoi === 'gà') ? { name: 'BSTY. Trần Gia Cầm', field: 'Gia cầm' } : { name: 'BSTY. Lê Minh Heo', field: 'Heo' };
+  }
+  function openTicketForm(ctx) {
+    const exp = expertFor(ctx.dxId);
+    const urgent = ctx.dxId && disById[ctx.dxId] && disById[ctx.dxId].muc_do === 'nguy_hiem';
+    const sla = urgent ? '2 giờ' : '24 giờ';
+    openSheet(`
+      <h3>Tạo ticket chuyên gia</h3>
+      <p class="sub">Chuyển ca cho chuyên gia kỹ thuật xác minh & hỗ trợ.</p>
+      <div class="kv"><b>Chuyên gia</b><span>${esc(exp.name)} · ${esc(exp.field)}</span></div>
+      <div class="kv"><b>SLA phản hồi</b><span>${sla}</span></div>
+      ${ctx.dxName ? `<div class="kv"><b>Ca nghi</b><span>${esc(ctx.dxName)}</span></div>` : ''}
+      ${ctx.customerName ? `<div class="kv"><b>Khách / trại</b><span>${esc(ctx.customerName)}</span></div>` : ''}
+      <div class="field"><label class="lbl">Câu hỏi cho chuyên gia</label><textarea class="in" id="tkNote" placeholder="Mô tả tình huống cần hỗ trợ…"></textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="tkClose">Hủy</button>
+        <button class="btn btn-primary" id="tkSave">Gửi ticket</button>
+      </div>
+    `);
+    $('#tkClose').onclick = closeSheet;
+    $('#tkSave').onclick = () => {
+      const t = { id: uid('CG-'), expert: exp.name, field: exp.field, sla, dxName: ctx.dxName || '', customer: ctx.customerName || '', note: $('#tkNote').value.trim(), status: 'open', created: todayStr() };
+      state.tickets.unshift(t); persistWorkflow(); closeSheet(); toast('Đã tạo ticket ' + t.id + ' → ' + exp.name);
+    };
+  }
+
+  /* ---- Chiến dịch (từ cảnh báo dịch) ---- */
+  function openCampaignForm(province, dxName) {
+    const targets = DB.distributors.filter(d => province && (norm(d.khu_vuc).includes(norm(province)) || norm(province).includes(norm(d.khu_vuc)))).slice(0, 4);
+    const d = DB.diseases.find(x => x.ten_benh === dxName);
+    const skus = d ? (d.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean).slice(0, 4) : [];
+    const msg = `[Anova] Cảnh báo ${dxName} tại ${province}. Anova có sẵn ${skus.map(s => s.ten).join(', ') || 'giải pháp phòng dịch'} — liên hệ để được tư vấn & ưu đãi kịp thời ạ.`;
+    openSheet(`
+      <h3>Tạo chiến dịch</h3>
+      <p class="sub">Nhắm khách trong vùng cảnh báo: ${esc(dxName)} · ${esc(province)}.</p>
+      <div class="case-section-title">${SVG.user} Khách mục tiêu (${targets.length})</div>
+      ${targets.length ? targets.map(t => `<div class="kv"><b>${esc(t.ten)}</b><span>${esc(t.khu_vuc)} · ${esc(t.loai_hinh)}</span></div>`).join('') : '<p class="muted-note">Chưa có NPP trong vùng này.</p>'}
+      <div class="case-section-title" style="margin-top:12px">${SVG.package} Sản phẩm đề xuất</div>
+      <div class="pill-tags">${skus.length ? skus.map(s => `<span class="pill">${esc(s.ten)}</span>`).join('') : '<span class="muted-note">—</span>'}</div>
+      <div class="field" style="margin-top:12px"><label class="lbl">Tin nhắn chiến dịch</label><textarea class="in" id="cpMsg" style="min-height:96px">${esc(msg)}</textarea></div>
+      <div class="sheet-actions">
+        <button class="btn btn-ghost" id="cpCopy">Copy tin</button>
+        <button class="btn btn-primary" id="cpSave">Lưu chiến dịch</button>
+      </div>
+    `);
+    $('#cpCopy').onclick = () => copyText($('#cpMsg').value);
+    $('#cpSave').onclick = () => {
+      const c = { id: uid('CMP-'), disease: dxName, province, targets: targets.map(t => t.ten), skus: skus.map(s => s.ten), message: $('#cpMsg').value.trim(), created: todayStr() };
+      state.campaigns.unshift(c); persistWorkflow(); closeSheet(); toast('Đã lưu chiến dịch ' + c.id);
+    };
+  }
+
+  /* ---- Hub "Công việc của tôi": danh sách đơn / ticket / chiến dịch ---- */
+  function openWorkflowList(type) {
+    let title, body;
+    if (type === 'orders') {
+      title = 'Đơn nháp';
+      body = state.orders.length ? state.orders.map(o => `
+        <div class="wf-item">
+          <div class="wf-head"><b>${esc(o.id)}</b><span class="pill">${esc(o.created)}</span></div>
+          <div class="wf-sub">${esc(o.customer || 'Khách lẻ')}${o.dxName ? (' · ' + esc(o.dxName)) : ''}</div>
+          <div class="wf-lines">${o.lines.map(l => `<div>• ${esc(l.ten)} — ${esc(l.qty)}</div>`).join('')}</div>
+          <button class="btn btn-ghost wf-copy" data-copy="${esc(o.id)}">Copy đơn</button>
+        </div>`).join('') : '<p class="empty">Chưa có đơn nháp. Tạo từ một chẩn đoán hoặc ca bệnh.</p>';
+    } else if (type === 'tickets') {
+      title = 'Ticket chuyên gia';
+      body = state.tickets.length ? state.tickets.map(t => `
+        <div class="wf-item">
+          <div class="wf-head"><b>${esc(t.id)}</b><span class="pill amber">SLA ${esc(t.sla)}</span></div>
+          <div class="wf-sub">${esc(t.expert)} · ${esc(t.field)}</div>
+          <div class="wf-lines">${t.dxName ? ('<div>Ca: ' + esc(t.dxName) + '</div>') : ''}${t.customer ? ('<div>Khách: ' + esc(t.customer) + '</div>') : ''}${t.note ? ('<div>“' + esc(t.note) + '”</div>') : ''}</div>
+        </div>`).join('') : '<p class="empty">Chưa có ticket. Tạo khi ca cần chuyển chuyên gia.</p>';
+    } else {
+      title = 'Chiến dịch';
+      body = state.campaigns.length ? state.campaigns.map(c => `
+        <div class="wf-item">
+          <div class="wf-head"><b>${esc(c.id)}</b><span class="pill">${esc(c.created)}</span></div>
+          <div class="wf-sub">${esc(c.disease)} · ${esc(c.province)}</div>
+          <div class="wf-lines"><div>${c.targets.length} khách mục tiêu</div></div>
+          <button class="btn btn-ghost wf-copy" data-copymsg="${esc(c.id)}">Copy tin</button>
+        </div>`).join('') : '<p class="empty">Chưa có chiến dịch. Tạo từ một cảnh báo dịch ở tab Dịch bệnh.</p>';
+    }
+    openSheet(`<h3>${title}</h3><div class="wf-list">${body}</div>`);
+    $('#sheet').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => { const o = state.orders.find(x => x.id === b.dataset.copy); if (o) copyText(orderText(o)); });
+    $('#sheet').querySelectorAll('[data-copymsg]').forEach(b => b.onclick = () => { const c = state.campaigns.find(x => x.id === b.dataset.copymsg); if (c) copyText(c.message); });
+  }
+  function renderWorkflowHome() {
+    const set = (id, n) => { const el = $(id); if (el) el.textContent = n; };
+    const activeCases = (state.cases || []).filter(c => c.status === 'active' || c.status === 'watch').length;
+    set('#wfCases', activeCases);
+    set('#wfOrders', state.orders.length);
+    set('#wfTickets', state.tickets.length);
+    set('#wfCampaigns', state.campaigns.length);
+  }
+  function loadWorkflow() {
+    state.orders = loadLocal('ai4sales_orders', null) || [];
+    state.tickets = loadLocal('ai4sales_tickets', null) || [];
+    state.campaigns = loadLocal('ai4sales_campaigns', null) || [];
+    if (!state.orders.length && !state.tickets.length) {
+      // gieo 1 đơn + 1 ticket mẫu để hub không trống (demo)
+      const d05 = disById['D05'], d01 = disById['D01'];
+      if (d05) {
+        const prods = (d05.san_pham_lien_quan || []).map(c => prodById[c]).filter(Boolean).slice(0, 3);
+        state.orders = [{ id: 'DON-2471', customer: 'Trại heo Long Thành', dxName: d05.ten_benh, lines: prods.map(p => ({ ma: p.ma_sp, ten: p.ten, role: ROLE[p.loai] || 'Sản phẩm', qty: '5 đv', gia: p.gia_vnd })), note: 'Giao trong tuần', status: 'draft', created: daysAgoStr(2) }];
+      }
+      if (d01) state.tickets = [{ id: 'CG-3082', expert: 'BSTY. Lê Minh Heo', field: 'Heo', sla: '2 giờ', dxName: d01.ten_benh, customer: 'Trại heo Hòa Phú', note: 'Nghi ASF, chết nhanh — xác minh & hướng xử lý đàn.', status: 'open', created: daysAgoStr(4) }];
+      saveLocal('ai4sales_orders', state.orders); saveLocal('ai4sales_tickets', state.tickets);
+    }
+  }
+
+  /* =======================================================================
      BOOT
      ===================================================================== */
+  loadCases();        // nạp ca bệnh đã lưu (hoặc gieo dữ liệu mẫu lần đầu)
+  loadWorkflow();     // nạp đơn nháp / ticket / chiến dịch
   renderHome();
 
   // Initialize voice recognition
+  initVoiceInput('homeVoice', 'homeAsk');
   initVoiceInput('kbVoice', 'kbInput');
   initVoiceInput('pushVoice', 'pushInput');
 
-  // Deep-link: mở thẳng một tab qua #knowledge / #push / #market
+  // Deep-link: mở thẳng một tab qua #knowledge / #push / #market / #cases
   const start = (location.hash || '').replace('#', '');
-  if (['knowledge', 'push', 'market'].includes(start)) go(start);
+  if (['knowledge', 'push', 'market', 'cases'].includes(start)) go(start);
   window.addEventListener('hashchange', () => {
     const h = (location.hash || '').replace('#', '');
-    if (['home', 'knowledge', 'push', 'market'].includes(h)) go(h);
+    if (['home', 'knowledge', 'push', 'market', 'cases'].includes(h)) go(h);
   });
 })();

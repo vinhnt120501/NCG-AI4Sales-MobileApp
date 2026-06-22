@@ -40,14 +40,24 @@
             </button>
           </div>
 
-          <div class="search" id="homeSearch">
-            <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> <span>Hỏi nhanh về bệnh, thuốc, khách hàng, khuyến mãi…</span>
-          </div>
+          <!-- Cục trợ lý AI lên trên cùng và nổi bật (Core Feature Hỏi đáp) -->
+          <div class="card card-ai-assistants">
+            <div class="card-title">
+              <h3>Trợ lý AI</h3>
+            </div>
+            <p class="subtext-ai">Hỏi đáp về bệnh dịch, sản phẩm và chiến lược bán hàng</p>
 
-          <div class="card hero" id="homeHero" data-go="market"></div>
+            <!-- Chat box hiển thị thẳng trên màn hình chính như bản web — gõ là dùng được ngay -->
+            <form class="home-ask" id="homeAskForm" autocomplete="off">
+              <span class="home-ask-ico"><svg class="ico" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path></svg></span>
+              <input id="homeAsk" placeholder="Hỏi nhanh: Heo sốt cao, bỏ ăn là bệnh gì?" />
+              <button class="home-ask-mic" id="homeVoice" type="button" title="Hỏi bằng giọng nói" aria-label="Hỏi bằng giọng nói"><svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></button>
+              <button class="home-ask-send" type="submit" aria-label="Gửi câu hỏi"><svg class="ico" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+            </form>
+            <div class="home-ask-hints" id="homeQuick"></div>
 
-          <div class="card">
-            <div class="card-title"><h3>Các trợ lý AI</h3></div>
+            <div class="feature-divider"><span>Hoặc chọn trợ lý chuyên biệt</span></div>
+
             <div class="feature-grid">
               <button class="feature" data-go="knowledge">
                 <div class="feature-icon"><svg class="ico" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2.96-2.05-5.67-5-6.57V5a3 3 0 0 0-6 0v3.43C5.05 9.33 3 12.04 3 15a7 7 0 0 0 7 7z"></path><path d="M12 9a4.85 4.85 0 0 0 2.5.5C14.75 6.5 13.5 5.5 12 5.5S9.25 6.5 9.5 9.5A4.85 4.85 0 0 0 12 9z"></path></svg></div>
@@ -57,7 +67,7 @@
                 </div>
               </button>
               <button class="feature" data-go="push">
-                <div class="feature-icon green"><svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></div>
+                <div class="feature-icon green"><svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="22" x2="4" y2="14"></line><line x1="12" y1="22" x2="12" y2="8"></line><line x1="20" y1="22" x2="20" y2="2"></line></svg></div>
                 <div>
                   <h4>Trợ lý Push-sale</h4>
                   <p>Xem lịch sử mua của khách và nhận gợi ý cơ hội up-sale / cross-sale kèm lý do.</p>
@@ -66,21 +76,33 @@
             </div>
           </div>
 
-          <div class="card">
+          <!-- Sổ ca bệnh: tạo ca → chẩn đoán & hỏi đáp → nhật ký điều trị → theo dõi hiệu quả SP -->
+          <div class="card case-home">
             <div class="card-title">
-              <h3>Highlight dịch bệnh</h3>
-              <button class="seg-btn active" data-go="market">Xem bản đồ</button>
+              <h3>Sổ ca bệnh</h3>
+              <span class="pill" id="caseHomeCount">0 ca</span>
             </div>
-            <p class="subtext">Tín hiệu nổi bật tổng hợp từ bản đồ dịch bệnh heat-map và dữ liệu thị trường do Sale ghi nhận.</p>
-            <div class="stat-grid" id="homeStats"></div>
-            <div class="spacer-12"></div>
-            <button class="btn btn-secondary" data-go="market">Mở bản đồ dịch bệnh heat-map</button>
+            <p class="subtext">Tạo ca → AI chẩn đoán &amp; hỏi đáp trên ca → ghi nhật ký điều trị → theo dõi hiệu quả sản phẩm.</p>
+            <div class="case-home-list" id="caseHomeList"></div>
+            <div class="btn-row">
+              <button class="btn btn-primary" data-newcase>＋ Tạo ca bệnh</button>
+              <button class="btn btn-ghost" data-go="cases">Xem tất cả</button>
+            </div>
           </div>
 
+          <!-- Công việc của tôi: gom ca bệnh · đơn nháp · ticket · chiến dịch -->
           <div class="card">
-            <div class="card-title"><h3>Gợi ý câu hỏi nhanh</h3></div>
-            <div class="quick-row" id="homeQuick"></div>
+            <div class="card-title"><h3>Công việc của tôi</h3></div>
+            <div class="wf-grid">
+              <button class="wf-tile" data-go="cases"><span class="wf-num" id="wfCases">0</span><span class="wf-lbl">Ca đang theo dõi</span></button>
+              <button class="wf-tile" data-view="orders"><span class="wf-num" id="wfOrders">0</span><span class="wf-lbl">Đơn nháp</span></button>
+              <button class="wf-tile" data-view="tickets"><span class="wf-num" id="wfTickets">0</span><span class="wf-lbl">Ticket chuyên gia</span></button>
+              <button class="wf-tile" data-view="campaigns"><span class="wf-num" id="wfCampaigns">0</span><span class="wf-lbl">Chiến dịch</span></button>
+            </div>
           </div>
+
+          <!-- Cảnh báo dịch bệnh nổi bật (1 thẻ duy nhất, bấm để mở bản đồ) -->
+          <div class="hero-warning" id="homeHero" data-go="market"></div>
         </section>
 
         <!-- ======================================================= KNOWLEDGE -->
@@ -124,12 +146,6 @@
               <h2>Trợ lý Push-sale</h2>
               <p>Phân tích lịch sử mua, bối cảnh dịch vùng và gợi ý cơ hội up-sale / cross-sale.</p>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title"><h3>Chọn khách hàng</h3></div>
-            <p class="subtext">Chạm vào một đại lý / trang trại để bắt đầu phân tích ngay trong khung chat.</p>
-            <div class="customer-pick" id="custPick"></div>
           </div>
 
           <div class="card">
@@ -184,12 +200,36 @@
           </div>
         </section>
 
+        <!-- =========================================================== CASES -->
+        <section id="cases" class="screen">
+          <div class="screen-header">
+            <div>
+              <h2>Sổ ca bệnh</h2>
+              <p>Tạo ca, chẩn đoán &amp; hỏi đáp trên ca, ghi nhật ký điều trị và theo dõi hiệu quả sản phẩm.</p>
+            </div>
+          </div>
+          <div id="casesBody"></div>
+        </section>
+
+        <!-- ====================================================== CASE DETAIL -->
+        <section id="caseDetail" class="screen">
+          <div class="screen-header">
+            <button class="back" data-go="cases"><svg class="ico" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+            <div>
+              <h2 id="cdTitle">Ca bệnh</h2>
+              <p id="cdSub"></p>
+            </div>
+          </div>
+          <div id="caseDetailBody"></div>
+        </section>
+
         <!-- ============================================================ NAV -->
         <nav class="tabbar">
           <button class="tab active" data-go="home"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span>Tổng quan</button>
           <button class="tab" data-go="knowledge"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2.96-2.05-5.67-5-6.57V5a3 3 0 0 0-6 0v3.43C5.05 9.33 3 12.04 3 15a7 7 0 0 0 7 7z"></path><path d="M12 9a4.85 4.85 0 0 0 2.5.5C14.75 6.5 13.5 5.5 12 5.5S9.25 6.5 9.5 9.5A4.85 4.85 0 0 0 12 9z"></path></svg></span>Tri thức</button>
-          <button class="tab" data-go="push"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg></span>Push-sale</button>
-          <button class="tab" data-go="market"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg></span>Dịch bệnh</button>
+          <button class="tab" data-go="cases"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg></span>Ca bệnh</button>
+          <button class="tab" data-go="push"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><line x1="4" y1="22" x2="4" y2="14"></line><line x1="12" y1="22" x2="12" y2="8"></line><line x1="20" y1="22" x2="20" y2="2"></line></svg></span>Push-sale</button>
+          <button class="tab" data-go="market"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24"><polygon points="3 5 9 2 15 5 21 2 21 19 15 22 9 19 3 22"></polygon><line x1="9" y1="2" x2="9" y2="19"></line><line x1="15" y1="5" x2="15" y2="22"></line></svg></span>Dịch bệnh</button>
         </nav>
 
         <div id="toast" class="toast"></div>
