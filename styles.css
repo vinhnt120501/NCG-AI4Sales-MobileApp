@@ -116,7 +116,7 @@ body {
   margin-bottom: 16px;
 }
 .appbar .brand { display: flex; align-items: center; gap: 10px; }
-.appbar .brand img { height: 22px; width: auto; display: block; }
+.appbar .brand img { height: 42px; width: auto; display: block; }
 .hello h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
 .hello p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
 
