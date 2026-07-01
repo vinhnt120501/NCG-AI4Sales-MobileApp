@@ -156,6 +156,16 @@
     // Hành động trong tab Hồ sơ (chỉnh sửa, cài đặt, đăng xuất…)
     const pf = e.target.closest('[data-pf]');
     if (pf) { handleProfileAction(pf.dataset.pf); return; }
+    // Menu ảnh: Chụp ảnh / Tải ảnh lên / Chụp / Huỷ
+    const ph = e.target.closest('[data-photoact]');
+    if (ph) {
+      const act = ph.dataset.photoact;
+      if (act === 'capture') openCameraCapture();
+      else if (act === 'upload') triggerUpload();
+      else if (act === 'snap') snapPhoto();
+      else if (act === 'cancelcam') { stopCam(); closeSheet(); }
+      return;
+    }
     const t = e.target.closest('[data-go]');
     if (t) {
       // Thẻ trợ lý ở Home có data-mode → mở màn tri thức đúng nhóm (thú y / sale)
@@ -181,7 +191,8 @@
     $('#sheetBackdrop').classList.add('show');
   }
   function closeSheet() {
-    $('#sheet').classList.remove('show');
+    if (typeof stopCam === 'function') stopCam(); // dừng camera nếu đang mở khung chụp
+    $('#sheet').classList.remove('show', 'sheet-cam');
     $('#sheetBackdrop').classList.remove('show');
   }
   $('#sheetBackdrop').addEventListener('click', closeSheet);
@@ -1275,12 +1286,12 @@
     img.src = dataUrl;
   }
 
-  // 1 input file dùng chung cho mọi nút ảnh (tránh tạo thừa mỗi lần render)
+  // 1 input file dùng chung cho nhánh "Tải ảnh lên" (tránh tạo thừa mỗi lần render)
   let _photoCb = null;
+  let _camStream = null;
   const _photoInput = document.createElement('input');
   _photoInput.type = 'file';
   _photoInput.accept = 'image/*';
-  // Không đặt "capture" → điện thoại cho chọn cả Chụp ảnh lẫn Thư viện ảnh có sẵn
   _photoInput.style.display = 'none';
   document.body.appendChild(_photoInput);
   _photoInput.addEventListener('change', () => {
@@ -1292,33 +1303,155 @@
     rd.readAsDataURL(f);
   });
 
+  // Bấm nút 📷 → mở menu chọn: Chụp ảnh (camera trực tiếp) hoặc Tải ảnh lên
   function initPhotoInput(btnId, onPhoto) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
     btn.addEventListener('click', () => {
       if (!state.profile.camera) { toast('Đang tắt quyền máy ảnh — bật lại trong Hồ sơ › Quyền truy cập.'); return; }
       _photoCb = onPhoto;
-      _photoInput.value = '';
-      _photoInput.click();
+      openPhotoChooser();
     });
   }
 
-  function photoAck(group) {
-    if (group === 'sale') return '<p>Đã nhận ảnh. Anh/chị cho biết cần tra cứu gì về sản phẩm trong ảnh (công dụng, liều, giá) nhé.</p>';
-    return '<p>Đã nhận ảnh triệu chứng. Anh/chị mô tả thêm <b>loài, tuổi, diễn biến</b> (sốt, bỏ ăn, tỷ lệ mắc/chết…) để em chẩn đoán chính xác hơn.</p>';
+  function openPhotoChooser() {
+    openSheet(`<h3>Thêm ảnh</h3><p class="sub">Chụp ảnh mới bằng camera hoặc tải ảnh có sẵn từ máy.</p>
+      <div class="photo-choice">
+        <button class="btn btn-primary" data-photoact="capture">${CAM_SVG}<span>Chụp ảnh</span></button>
+        <button class="btn btn-ghost" data-photoact="upload"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>Tải ảnh lên</span></button>
+      </div>`);
+  }
+
+  function triggerUpload() { closeSheet(); _photoInput.value = ''; _photoInput.click(); }
+
+  async function openCameraCapture() {
+    openSheet(`<h3>Chụp ảnh</h3><p class="sub">Đưa vật nuôi/triệu chứng vào khung rồi bấm Chụp.</p>
+      <div class="cam-wrap"><video id="camVideo" autoplay playsinline muted></video></div>
+      <div class="photo-choice">
+        <button class="btn btn-primary" data-photoact="snap">${CAM_SVG}<span>Chụp</span></button>
+        <button class="btn btn-ghost" data-photoact="cancelcam">Huỷ</button>
+      </div>`);
+    $('#sheet').classList.add('sheet-cam'); // chiều cao cố định → nút Chụp luôn hiện, khỏi cuộn
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      closeSheet(); toast('Thiết bị/trình duyệt không hỗ trợ camera. Anh/chị dùng "Tải ảnh lên" nhé.');
+      _photoInput.click(); return;
+    }
+    try {
+      _camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      const v = document.getElementById('camVideo');
+      if (v) v.srcObject = _camStream; else stopCam();
+    } catch (e) {
+      stopCam(); closeSheet();
+      toast('Không mở được camera (cần HTTPS & cấp quyền). Anh/chị có thể tải ảnh lên thay thế.');
+      _photoInput.click();
+    }
+  }
+
+  function stopCam() {
+    if (_camStream) { try { _camStream.getTracks().forEach(t => t.stop()); } catch (e) {} _camStream = null; }
+  }
+
+  function snapPhoto() {
+    const v = document.getElementById('camVideo');
+    if (!v || !v.videoWidth) { toast('Camera chưa sẵn sàng, thử lại sau giây lát.'); return; }
+    const cv = document.createElement('canvas');
+    cv.width = v.videoWidth; cv.height = v.videoHeight;
+    cv.getContext('2d').drawImage(v, 0, 0);
+    let dataUrl; try { dataUrl = cv.toDataURL('image/jpeg', 0.9); } catch (e) { toast('Không chụp được ảnh.'); return; }
+    const cb = _photoCb;
+    stopCam(); closeSheet();
+    downscaleImage(dataUrl, 900, (small) => { if (cb) cb(small); });
+  }
+
+  // Nút gợi ý trong phản hồi ảnh dẫn vào đúng luồng của từng trợ lý
+  window.askPushReply = (v) => askPush(v);
+  window.askCaseReply = (v) => caseAsk(v);
+
+  /* ---- Phản hồi khi nhận ảnh: trình bày đầy đủ như một lượt hỏi đáp thật ---- */
+  function photoAckVet() {
+    return `
+      <p class="ans-lead">Đã nhận <b>ảnh triệu chứng</b>. Em ghi nhận hình ảnh để hỗ trợ chẩn đoán ban đầu.</p>
+      <div class="panel"><h5>🔎 Cần đối chiếu từ ảnh</h5>
+        <ul>
+          <li>Vị trí &amp; tính chất tổn thương (da, niêm mạc, phân, dịch tiết…).</li>
+          <li>Mức độ lan rộng, màu sắc và diễn biến bất thường.</li>
+        </ul>
+      </div>
+      <div class="panel question-panel"><h5><span class="pulse-dot"></span> Câu hỏi xác minh từ Trợ lý</h5>
+        <p>Anh/chị cho biết <b>loài, tuổi</b> và các dấu hiệu đi kèm (sốt, bỏ ăn, tiêu chảy, tỷ lệ mắc/chết) để em đối chiếu cơ sở tri thức bệnh và đưa ra chẩn đoán.</p>
+      </div>
+      <div class="quick-reply-row">
+        <button class="qr-btn" onclick="window.askDiagReply('Heo thịt sốt cao 41 độ, bỏ ăn, da tai bụng đỏ tím, chết nhanh tỷ lệ cao')">Heo sốt cao, bỏ ăn, chết nhanh</button>
+        <button class="qr-btn" onclick="window.askDiagReply('Gà ủ rũ đột ngột, tiêu chảy phân trắng nhớt, chết tăng nhanh')">Gà ủ rũ, tiêu chảy, chết nhanh</button>
+      </div>
+      ${srcRow(['Thư viện tri thức bệnh', 'Dược lý thú y'])}
+      <div class="muted-note" style="margin-top:8px">Ảnh chỉ hỗ trợ tham khảo, chưa thay thế thăm khám trực tiếp — mô tả thêm để em đưa ra phác đồ và sản phẩm điều trị.</div>`;
+  }
+  function photoAckSale() {
+    return `
+      <p class="ans-lead">Đã nhận <b>ảnh sản phẩm</b>. Em có thể tra cứu thông tin tương ứng trong danh mục.</p>
+      <div class="panel"><h5>📦 Có thể tra cứu từ ảnh</h5>
+        <ul>
+          <li>Công dụng, chỉ định, liều &amp; đường dùng.</li>
+          <li>Giá tham khảo, chống chỉ định, thời gian ngừng thuốc.</li>
+        </ul>
+      </div>
+      <div class="panel question-panel"><h5><span class="pulse-dot"></span> Trợ lý hỏi thêm</h5>
+        <p>Anh/chị cho biết <b>tên hoặc mã sản phẩm</b> trong ảnh (hoặc chọn nhanh bên dưới) để em tra cứu chi tiết.</p>
+      </div>
+      <div class="quick-reply-row">
+        <button class="qr-btn" onclick="window.askDiagReply('Anova Enroflox 10%')">Anova Enroflox 10%</button>
+        <button class="qr-btn" onclick="window.askDiagReply('NAVET-ASFVAC')">NAVET-ASFVAC</button>
+        <button class="qr-btn" onclick="window.askDiagReply('Đang có khuyến mãi gì?')">Khuyến mãi đang áp dụng</button>
+      </div>
+      ${srcRow(['Catalogue sản phẩm', 'Chương trình khuyến mãi'])}`;
+  }
+  function pushPhotoAck() {
+    return `
+      <p class="ans-lead">Đã nhận <b>ảnh</b> (đơn hàng / tồn kho / kệ trưng bày). Em ghi nhận để hỗ trợ tư vấn đẩy hàng cho khách này.</p>
+      <div class="panel"><h5>📦 Em có thể dùng ảnh để</h5>
+        <ul>
+          <li>Đối chiếu sản phẩm khách đang có / còn tồn.</li>
+          <li>Gợi ý bổ sung, up-sale / cross-sale đúng nhu cầu.</li>
+        </ul>
+      </div>
+      <div class="panel question-panel"><h5><span class="pulse-dot"></span> Trợ lý hỏi thêm</h5>
+        <p>Anh/chị muốn phân tích cơ hội đẩy hàng cho khách nào? Chọn nhanh bên dưới nhé.</p>
+      </div>
+      <div class="quick-reply-row">
+        <button class="qr-btn" onclick="window.askPushReply('Khách nào nên ưu tiên hôm nay?')">Khách ưu tiên hôm nay</button>
+        <button class="qr-btn" onclick="window.askPushReply('Phân tích Đại lý Minh Phát')">Phân tích Đại lý Minh Phát</button>
+      </div>`;
+  }
+  function casePhotoAck() {
+    return `
+      <p class="ans-lead">Đã <b>đính kèm ảnh</b> vào ca bệnh. Em ghi nhận hình ảnh để theo dõi diễn biến của ca.</p>
+      <div class="panel"><h5>🔎 Ảnh này hỗ trợ</h5>
+        <ul>
+          <li>So sánh diễn biến qua các lần điều trị.</li>
+          <li>Đối chiếu triệu chứng khi cần chẩn đoán lại.</li>
+        </ul>
+      </div>
+      <div class="panel question-panel"><h5><span class="pulse-dot"></span> Trợ lý hỏi thêm</h5>
+        <p>Anh/chị muốn em hỗ trợ gì tiếp theo cho ca này? Chọn nhanh bên dưới nhé.</p>
+      </div>
+      <div class="quick-reply-row">
+        <button class="qr-btn" onclick="window.askCaseReply('Phác đồ xử lý chi tiết')">Phác đồ xử lý chi tiết</button>
+        <button class="qr-btn" onclick="window.askCaseReply('Nên dùng sản phẩm nào?')">Nên dùng sản phẩm nào?</button>
+      </div>`;
   }
 
   // Trợ lý tri thức (thú y / sale)
   function kbPhoto(dataUrl) {
     addBubble('user', `<img class="chat-img" src="${dataUrl}" alt="Ảnh">`, 'img-bubble');
     const t = thinking();
-    setTimeout(() => { t.outerHTML = '<div class="bubble ai">' + photoAck(state.kbGroup) + '</div>'; scrollChat(); }, 600);
+    setTimeout(() => { t.outerHTML = '<div class="bubble ai">' + (state.kbGroup === 'sale' ? photoAckSale() : photoAckVet()) + '</div>'; scrollChat(); }, 700);
   }
   // Push-sale
   function pushPhoto(dataUrl) {
     pushBubble('user', `<img class="chat-img" src="${dataUrl}" alt="Ảnh">`, 'img-bubble');
     const t = pushThinking();
-    setTimeout(() => { t.outerHTML = '<div class="bubble ai"><p>Đã nhận ảnh. Em có thể tham chiếu (đơn hàng, tồn kho, kệ trưng bày…) khi tư vấn đẩy hàng cho khách này.</p></div>'; pushScroll(); }, 550);
+    setTimeout(() => { t.outerHTML = '<div class="bubble ai">' + pushPhotoAck() + '</div>'; pushScroll(); }, 650);
   }
   // Chi tiết ca bệnh (lưu vào ca)
   function casePhoto(dataUrl) {
@@ -1329,12 +1462,12 @@
     const t = document.createElement('div'); t.className = 'bubble ai typing'; t.innerHTML = '<i></i><i></i><i></i>';
     chat.appendChild(t); caseChatScroll();
     setTimeout(() => {
-      const html = '<p>Đã đính kèm ảnh vào ca bệnh. Em ghi nhận để theo dõi diễn biến; anh/chị mô tả thêm triệu chứng nếu cần chẩn đoán lại.</p>';
+      const html = casePhotoAck();
       t.outerHTML = `<div class="bubble ai">${html}</div>`;
       c.chat.push({ who: 'ai', html });
       c.updated = todayStr(); c.updatedAt = Date.now();
       persistCases(); caseChatScroll();
-    }, 600);
+    }, 700);
   }
   // Home: mở trợ lý thú y kèm ảnh
   function homePhoto(dataUrl) {
@@ -2180,7 +2313,7 @@
         </div>
       </div>
 
-      <p class="pf-version">AI SalesMate · phiên bản 1.0.4</p>
+      <p class="pf-version">AI SalesMate · phiên bản 1.0.6</p>
     `;
   }
 
