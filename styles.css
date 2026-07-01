@@ -238,6 +238,10 @@ body {
   background: rgba(76, 130, 92, 0.35);
   color: #8ae09f;
 }
+.card-ai-assistants .feature-icon.amber {
+  background: rgba(199, 119, 0, 0.32);
+  color: #f4c579;
+}
 .card-ai-assistants .feature:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.3);
@@ -399,7 +403,7 @@ body {
 }
 
 /* ----------------------------------------------------------------- Feature buttons */
-.feature-grid { display: grid; gap: 11px; }
+.feature-grid { display: grid; gap: 11px; grid-auto-rows: 1fr; }
 .feature {
   border: 1px solid var(--line); border-radius: 18px; background: #fff;
   padding: 14px; display: flex; gap: 13px; align-items: flex-start;
@@ -804,7 +808,8 @@ html.touch .device { max-width: 100%; }
 @media (min-width: 760px) and (min-height: 600px) {
   .device { max-width: 860px; }
   .screen { padding-left: clamp(22px, 7%, 120px); padding-right: clamp(22px, 7%, 120px); }
-  .feature-grid { grid-template-columns: 1fr 1fr; }
+  /* Tablet: 3 thẻ trợ lý xếp chồng 1 cột, đồng đều kích thước (2 cột sẽ lẻ 1 thẻ) */
+  .feature-grid { grid-template-columns: 1fr; }
   .feature p, .bubble { font-size: 13px; }
   .map-shell { height: 460px; }
   .bubble { max-width: 84%; }
@@ -826,7 +831,7 @@ html.touch .device { max-width: 100%; }
   .tab .tab-ico { font-size: 23px; }
   .app > .screen { padding: 18px clamp(28px, 6%, 150px) 32px; }
   html.touch .app > .screen { padding-bottom: 32px; }
-  .feature-grid { grid-template-columns: 1fr 1fr; }
+  .feature-grid { grid-template-columns: repeat(3, 1fr); align-items: stretch; }
   .map-shell { height: 520px; }
   .bubble { max-width: 72%; }
   .toast { bottom: 24px; }
@@ -983,10 +988,10 @@ html.touch .device { max-width: 100%; }
    cần hướng dẫn người dùng.
    ========================================================================= */
 
-/* 6 tab — nới nhẹ để nhãn vẫn gọn gàng */
-.tabbar { grid-template-columns: repeat(6, 1fr); padding-left: 4px; padding-right: 4px; }
-.tabbar .tab { font-size: 9px; gap: 3px; padding: 0 1px; }
-.tabbar .tab .tab-ico .ico { font-size: 19px; }
+/* 7 tab — thu gọn nhãn để thanh dưới mobile vẫn vừa; desktop nav dọc nên thoải mái */
+.tabbar { grid-template-columns: repeat(7, 1fr); padding-left: 3px; padding-right: 3px; }
+.tabbar .tab { font-size: 8.5px; gap: 3px; padding: 0 1px; line-height: 1.15; }
+.tabbar .tab .tab-ico .ico { font-size: 18px; }
 @media (min-width: 760px) and (min-height: 600px) { .tabbar .tab { font-size: 11px; } }
 
 /* --- Card "Sổ ca bệnh" trên Home --- */

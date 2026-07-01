@@ -88,6 +88,7 @@
     mapFocus: { x: 50, y: 50 },
     mapPan: { x: 0, y: 0 },
     kbMode: 'diagnose',
+    kbGroup: 'vet',
     pushCustomer: DB.distributors[0].id,
 
     // Multi-turn Diagnosis state
@@ -119,7 +120,12 @@
     state.screen = id;
     $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
     const navId = NAV_PARENT[id] || id;
-    $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.go === navId));
+    $$('.tab').forEach(t => {
+      let on = t.dataset.go === navId;
+      // Hai tab tri thức (Thú y / Tri thức sale) cùng trỏ màn knowledge → chỉ sáng tab đúng nhóm
+      if (on && navId === 'knowledge' && t.dataset.group) on = t.dataset.group === state.kbGroup;
+      t.classList.toggle('active', on);
+    });
     const active = $('.screen.active');
     if (active) active.scrollTop = 0;
     if (id === 'knowledge') ensureKnowledge();
@@ -151,7 +157,11 @@
     const pf = e.target.closest('[data-pf]');
     if (pf) { handleProfileAction(pf.dataset.pf); return; }
     const t = e.target.closest('[data-go]');
-    if (t) { go(t.dataset.go); }
+    if (t) {
+      // Thẻ trợ lý ở Home có data-mode → mở màn tri thức đúng nhóm (thú y / sale)
+      if (t.dataset.mode) setMode(t.dataset.mode, true);
+      go(t.dataset.go);
+    }
   });
 
   /* --------------------------------------------------------------- Toast */
@@ -235,7 +245,14 @@
      Không cần hướng dẫn — đặt câu hỏi là dùng được ngay (easy onboarding). */
   function homeAsk(text, mode) {
     const v = (text || '').trim();
-    setMode(mode || 'diagnose', true);
+    // Đoán nhóm trợ lý phù hợp với câu hỏi gõ ở Home: khuyến mãi / sản phẩm → Tri thức sale
+    let m = mode;
+    if (!m && v) {
+      const q = norm(v);
+      if (/(khuyen mai|uu dai|combo|tang|chiet khau|tich diem|km|khach moi)/.test(q)) m = 'promo';
+      else if (findProduct(v) && /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q)) m = 'product';
+    }
+    setMode(m || 'diagnose', true);
     go('knowledge');
     if (v) ask(v);
     else setTimeout(() => { const i = $('#kbInput'); if (i) i.focus(); }, 250);
@@ -305,18 +322,37 @@
     },
   };
 
+  /* Tách "Trợ lý tri thức" thành 2 trợ lý chuyên biệt dùng chung 1 màn:
+     - vet : Chẩn đoán + Phác đồ (Trợ lý thú y)
+     - sale: Sản phẩm + Khuyến mãi (Tri thức sale)
+     Màn knowledge đổi tiêu đề & chỉ hiện các segment thuộc nhóm đang mở. */
+  const KB_GROUPS = {
+    vet:  { modes: ['diagnose', 'protocol'], def: 'diagnose', title: 'Trợ lý thú y',  sub: 'Chẩn đoán dịch bệnh, tư vấn phác đồ.' },
+    sale: { modes: ['product', 'promo'],     def: 'product',  title: 'Tri thức sale', sub: 'Thông tin sản phẩm, chương trình khuyến mãi.' },
+  };
+  const groupOfMode = (mode) => KB_GROUPS.sale.modes.includes(mode) ? 'sale' : 'vet';
+
   let kbReady = false;
   function ensureKnowledge() {
-    if (!kbReady) { setMode('diagnose', true); kbReady = true; }
+    if (!kbReady) setMode(KB_GROUPS[state.kbGroup || 'vet'].def, true);
   }
 
   function setMode(mode, reset) {
     state.kbMode = mode;
+    state.kbGroup = groupOfMode(mode);
     state.diagStep = 0;
     state.diagQuery = null;
     state.diagScores = null;
     state.diagFollowUpAsked = null;
-    $$('#kbSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    const grp = KB_GROUPS[state.kbGroup];
+    // Header của màn đổi theo nhóm trợ lý đang mở
+    const ht = $('#kbTitle'); if (ht) ht.textContent = grp.title;
+    const hs = $('#kbSub');   if (hs) hs.textContent = grp.sub;
+    // Chỉ hiện các segment thuộc nhóm hiện tại
+    $$('#kbSeg .seg-btn').forEach(b => {
+      b.style.display = grp.modes.includes(b.dataset.mode) ? '' : 'none';
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
     const cfg = KB_MODES[mode];
     $('#kbInput').placeholder = cfg.placeholder;
     $('#kbQuickTitle').textContent = cfg.title;
@@ -326,6 +362,7 @@
       addBubble('ai', cfg.intro);
       if (mode === 'promo') setTimeout(() => addBubble('ai', answerPromo('')), 220);
     }
+    kbReady = true;
   }
   $('#kbSeg').addEventListener('click', (e) => {
     const b = e.target.closest('.seg-btn'); if (!b) return;
@@ -381,33 +418,37 @@
     ask(val);
   };
 
-  /* Intent router (ưu tiên ý định rõ ràng, nếu không dùng tab đang chọn) */
+  /* Intent router — scope theo nhóm trợ lý đang mở, không tự nhảy nhóm gây giật context.
+     Trong nhóm vẫn chuyển segment linh hoạt (chẩn đoán↔phác đồ, sản phẩm↔khuyến mãi). */
   function route(text) {
     const q = norm(text);
     const mode = state.kbMode;
+    const prodKw = /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q);
     const prod = findProduct(text);
     const isPromo = /(khuyen mai|uu dai|combo|tang|chiet khau|tich diem|km|khach moi)/.test(q);
     const dis = findDiseaseByName(text);
 
-    if (mode === 'diagnose' && state.diagStep === 1) {
-      if (!isPromo && !(prod && /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q))) {
-        return answerDiagnoseFollowUp(text);
-      }
+    // ===== Tri thức sale: sản phẩm + khuyến mãi =====
+    if (state.kbGroup === 'sale') {
+      if (isPromo) { setMode('promo'); return answerPromo(text, true); }
+      if (prod) { setMode('product'); return answerProduct(prod); }
+      if (mode === 'promo') return answerPromo(text, true);
+      return notFoundProduct(text);
     }
 
-    if (isPromo) { setMode('promo'); return answerPromo(text, true); }
-    if (prod && (mode === 'product' || /(gia|lieu|cong dung|tra cuu|san pham|thuoc|vaccine|bao quan|chong chi dinh|ngung thuoc)/.test(q) || mode !== 'diagnose')) {
-      setMode('product'); return answerProduct(prod);
+    // ===== Trợ lý thú y: chẩn đoán + phác đồ =====
+    if (mode === 'diagnose' && state.diagStep === 1) {
+      if (!isPromo && !(prod && prodKw)) return answerDiagnoseFollowUp(text);
     }
-    if (mode === 'protocol' && dis) { return answerProtocol(dis); }
-    if (mode === 'product') { return prod ? answerProduct(prod) : notFoundProduct(text); }
-    if (mode === 'promo') { return answerPromo(text, true); }
-    if (mode === 'protocol') { return dis ? answerProtocol(dis) : notFoundDisease(); }
-    // diagnose mode (default) — but if user just names a disease, show protocol
+    // Hỏi rõ về khuyến mãi / sản phẩm ngay trong trợ lý thú y → vẫn tra giúp (không đổi nhóm)
+    if (isPromo) return answerPromo(text, true);
+    if (prod && (prodKw || mode === 'protocol')) return answerProduct(prod);
+    if (mode === 'protocol') return dis ? answerProtocol(dis) : notFoundDisease();
+    // diagnose mode (mặc định) — nếu chỉ nêu tên bệnh thì trả phác đồ
     const scores = diagnose(text);
     if (scores.length) return answerDiagnose(text, scores);
     if (dis) return answerProtocol(dis);
-    if (prod) { setMode('product'); return answerProduct(prod); }
+    if (prod) return answerProduct(prod);
     return fallback();
   }
 
@@ -2045,7 +2086,7 @@
         </div>
       </div>
 
-      <p class="pf-version">AI SalesMate · phiên bản 1.0.1</p>
+      <p class="pf-version">AI SalesMate · phiên bản 1.0.2</p>
     `;
   }
 
