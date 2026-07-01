@@ -381,9 +381,9 @@
     ask(v);
   }
 
-  function addBubble(who, html) {
+  function addBubble(who, html, extra) {
     const div = document.createElement('div');
-    div.className = 'bubble ' + who;
+    div.className = 'bubble ' + who + (extra ? ' ' + extra : '');
     div.innerHTML = html;
     $('#kbChat').appendChild(div);
     scrollChat();
@@ -772,9 +772,9 @@
     };
   }
 
-  function pushBubble(who, html) {
+  function pushBubble(who, html, extra) {
     const div = document.createElement('div');
-    div.className = 'bubble ' + who;
+    div.className = 'bubble ' + who + (extra ? ' ' + extra : '');
     div.innerHTML = html;
     $('#pushChat').appendChild(div);
     pushScroll();
@@ -1256,6 +1256,94 @@
   }
 
   /* =======================================================================
+     CHỤP / TẢI ẢNH — nút cạnh mic cho Sale đính kèm ảnh (triệu chứng, sản
+     phẩm, đơn hàng...) vào hội thoại. Ảnh được nén nhỏ trước khi hiển thị.
+     ===================================================================== */
+  // Nén ảnh về cạnh dài tối đa maxDim để hiển thị gọn & không phình localStorage
+  function downscaleImage(dataUrl, maxDim, cb) {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (Math.max(w, h) > maxDim) { const s = maxDim / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+      try {
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        cb(cv.toDataURL('image/jpeg', 0.82));
+      } catch (e) { cb(dataUrl); }
+    };
+    img.onerror = () => cb(dataUrl);
+    img.src = dataUrl;
+  }
+
+  // 1 input file dùng chung cho mọi nút ảnh (tránh tạo thừa mỗi lần render)
+  let _photoCb = null;
+  const _photoInput = document.createElement('input');
+  _photoInput.type = 'file';
+  _photoInput.accept = 'image/*';
+  // Không đặt "capture" → điện thoại cho chọn cả Chụp ảnh lẫn Thư viện ảnh có sẵn
+  _photoInput.style.display = 'none';
+  document.body.appendChild(_photoInput);
+  _photoInput.addEventListener('change', () => {
+    const f = _photoInput.files && _photoInput.files[0];
+    const cb = _photoCb; _photoInput.value = '';
+    if (!f || !cb) return;
+    const rd = new FileReader();
+    rd.onload = () => downscaleImage(rd.result, 900, cb);
+    rd.readAsDataURL(f);
+  });
+
+  function initPhotoInput(btnId, onPhoto) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!state.profile.camera) { toast('Đang tắt quyền máy ảnh — bật lại trong Hồ sơ › Quyền truy cập.'); return; }
+      _photoCb = onPhoto;
+      _photoInput.value = '';
+      _photoInput.click();
+    });
+  }
+
+  function photoAck(group) {
+    if (group === 'sale') return '<p>Đã nhận ảnh. Anh/chị cho biết cần tra cứu gì về sản phẩm trong ảnh (công dụng, liều, giá) nhé.</p>';
+    return '<p>Đã nhận ảnh triệu chứng. Anh/chị mô tả thêm <b>loài, tuổi, diễn biến</b> (sốt, bỏ ăn, tỷ lệ mắc/chết…) để em chẩn đoán chính xác hơn.</p>';
+  }
+
+  // Trợ lý tri thức (thú y / sale)
+  function kbPhoto(dataUrl) {
+    addBubble('user', `<img class="chat-img" src="${dataUrl}" alt="Ảnh">`, 'img-bubble');
+    const t = thinking();
+    setTimeout(() => { t.outerHTML = '<div class="bubble ai">' + photoAck(state.kbGroup) + '</div>'; scrollChat(); }, 600);
+  }
+  // Push-sale
+  function pushPhoto(dataUrl) {
+    pushBubble('user', `<img class="chat-img" src="${dataUrl}" alt="Ảnh">`, 'img-bubble');
+    const t = pushThinking();
+    setTimeout(() => { t.outerHTML = '<div class="bubble ai"><p>Đã nhận ảnh. Em có thể tham chiếu (đơn hàng, tồn kho, kệ trưng bày…) khi tư vấn đẩy hàng cho khách này.</p></div>'; pushScroll(); }, 550);
+  }
+  // Chi tiết ca bệnh (lưu vào ca)
+  function casePhoto(dataUrl) {
+    const c = getCase(state.currentCase); if (!c) return;
+    const chat = $('#caseChat'); if (!chat) return;
+    c.chat.push({ who: 'user', img: dataUrl });
+    chat.insertAdjacentHTML('beforeend', `<div class="bubble user img-bubble"><img class="chat-img" src="${dataUrl}" alt="Ảnh"></div>`);
+    const t = document.createElement('div'); t.className = 'bubble ai typing'; t.innerHTML = '<i></i><i></i><i></i>';
+    chat.appendChild(t); caseChatScroll();
+    setTimeout(() => {
+      const html = '<p>Đã đính kèm ảnh vào ca bệnh. Em ghi nhận để theo dõi diễn biến; anh/chị mô tả thêm triệu chứng nếu cần chẩn đoán lại.</p>';
+      t.outerHTML = `<div class="bubble ai">${html}</div>`;
+      c.chat.push({ who: 'ai', html });
+      c.updated = todayStr(); c.updatedAt = Date.now();
+      persistCases(); caseChatScroll();
+    }, 600);
+  }
+  // Home: mở trợ lý thú y kèm ảnh
+  function homePhoto(dataUrl) {
+    setMode('diagnose', true);
+    go('knowledge');
+    kbPhoto(dataUrl);
+  }
+
+  /* =======================================================================
      SỔ CA BỆNH — tạo ca · chẩn đoán & hỏi đáp · nhật ký điều trị ·
      đánh giá kết quả · theo dõi hiệu quả sản phẩm. Lưu vào localStorage.
      ===================================================================== */
@@ -1275,6 +1363,7 @@
   function daysAgoStr(n) { const d = new Date(); d.setDate(d.getDate() - n); return dateStr(d); }
 
   const MIC_SVG = '<svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>';
+  const CAM_SVG = '<svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
   const CLIPBOARD_SVG = '<svg class="ico" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg>';
 
   function statusMeta(st) {
@@ -1345,7 +1434,10 @@
 
   /* ---- Hỏi đáp trên ca ---- */
   function caseBubbleHtml(m) {
-    if (m.who === 'user') return `<div class="bubble user">${esc(m.text || '')}</div>`;
+    if (m.who === 'user') {
+      if (m.img) return `<div class="bubble user img-bubble"><img class="chat-img" src="${m.img}" alt="Ảnh đính kèm"></div>`;
+      return `<div class="bubble user">${esc(m.text || '')}</div>`;
+    }
     return `<div class="bubble ai">${m.html || esc(m.text || '')}</div>`;
   }
   function caseAnswer(text, c) {
@@ -1512,6 +1604,7 @@
       <div class="case-chat" id="caseChat">${(c.chat || []).map(caseBubbleHtml).join('')}</div>
       <div class="case-composer">
         <input id="caseInput" placeholder="Hỏi thêm về ca này…" />
+        <button class="case-mic" id="caseCam" type="button" title="Chụp/tải ảnh" aria-label="Chụp hoặc tải ảnh">${CAM_SVG}</button>
         <button class="case-mic" id="caseVoice" type="button" title="Hỏi bằng giọng nói" aria-label="Hỏi bằng giọng nói">${MIC_SVG}</button>
         <button class="case-send" id="caseSend" type="button" aria-label="Gửi"><svg class="ico" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
       </div>
@@ -1563,6 +1656,7 @@
     $('#caseInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') caseSend(); });
     $('#caseQuick').onclick = (e) => { const b = e.target.closest('.quick'); if (!b) return; const inp = $('#caseInput'); if (inp) inp.value = ''; caseAsk(b.textContent); };
     initVoiceInput('caseVoice', 'caseInput');
+    initPhotoInput('caseCam', casePhoto);
     const at = $('#cdAddTreatment'); if (at) at.onclick = openTreatmentForm;
     const rt = $('#cdRate'); if (rt) rt.onclick = openOutcomeForm;
     const cc = $('#caseChat'); if (cc) cc.scrollTop = 0;   // mở ca: xem từ đầu hội thoại
@@ -2086,7 +2180,7 @@
         </div>
       </div>
 
-      <p class="pf-version">AI SalesMate · phiên bản 1.0.2</p>
+      <p class="pf-version">AI SalesMate · phiên bản 1.0.4</p>
     `;
   }
 
@@ -2154,6 +2248,9 @@
   initVoiceInput('homeVoice', 'homeAsk');
   initVoiceInput('kbVoice', 'kbInput');
   initVoiceInput('pushVoice', 'pushInput');
+  initPhotoInput('homeCam', homePhoto);
+  initPhotoInput('kbCam', kbPhoto);
+  initPhotoInput('pushCam', pushPhoto);
 
   // Deep-link: mở thẳng một tab qua #knowledge / #push / #market / #cases
   const start = (location.hash || '').replace('#', '');

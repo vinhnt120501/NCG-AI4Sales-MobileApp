@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-  <link rel="stylesheet" href="styles.css?v=1.0.3" />
+  <link rel="stylesheet" href="styles.css?v=1.0.4" />
   <script>
     /* Thiết bị cảm ứng thật (iPhone/iPad) -> chạy full-screen; máy tính giữ khung mô phỏng */
     try {
@@ -51,6 +51,7 @@
             <form class="home-ask" id="homeAskForm" autocomplete="off">
               <span class="home-ask-ico"><svg class="ico" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"></path></svg></span>
               <input id="homeAsk" placeholder="Hỏi nhanh: Heo sốt cao, bỏ ăn là bệnh gì?" />
+              <button class="home-ask-mic" id="homeCam" type="button" title="Chụp/tải ảnh" aria-label="Chụp hoặc tải ảnh"><svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
               <button class="home-ask-mic" id="homeVoice" type="button" title="Hỏi bằng giọng nói" aria-label="Hỏi bằng giọng nói"><svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></button>
               <button class="home-ask-send" type="submit" aria-label="Gửi câu hỏi"><svg class="ico" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
             </form>
@@ -129,6 +130,7 @@
 
           <div class="composer">
             <input id="kbInput" placeholder="Nhập câu hỏi cho trợ lý tri thức…" />
+            <button class="voice-btn" id="kbCam" type="button" title="Chụp/tải ảnh" aria-label="Chụp hoặc tải ảnh"><svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
             <button class="voice-btn" id="kbVoice" title="Ghi âm câu hỏi"><svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></button>
             <button class="send" id="kbSend"><svg class="ico" style="margin-left: 2px;" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
           </div>
@@ -155,6 +157,7 @@
 
           <div class="composer">
             <input id="pushInput" placeholder="Hỏi tiếp về khách này…" />
+            <button class="voice-btn" id="pushCam" type="button" title="Chụp/tải ảnh" aria-label="Chụp hoặc tải ảnh"><svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
             <button class="voice-btn" id="pushVoice" title="Ghi âm câu hỏi"><svg class="ico" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></button>
             <button class="send" id="pushSend"><svg class="ico" style="margin-left: 2px;" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
           </div>
@@ -248,7 +251,7 @@
     </div>
   </div>
 
-  <script src="data.js?v=1.0.3"></script>
-  <script src="app.js?v=1.0.3"></script>
+  <script src="data.js?v=1.0.4"></script>
+  <script src="app.js?v=1.0.4"></script>
 </body>
 </html>
